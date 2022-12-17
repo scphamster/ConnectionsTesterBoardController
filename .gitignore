@@ -1,0 +1,6 @@
+panels_tester_mux_controller/Debug
+panels_tester_mux_controller/Release
+.vs/
+cmake-build-debug/
+cmake-build-release/
+.idea/
