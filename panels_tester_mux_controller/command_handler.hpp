@@ -15,6 +15,8 @@
 #include "adc.hpp"
 #include "timer.hpp"
 
+#include "iic.hpp"
+
 #define MY_ADDRESS 0x25
 
 class Command {
@@ -23,6 +25,7 @@ class Command {
 
     Command(Byte cmd)
       : command{ cmd }
+      , i2c{ IIC::Get() }
     { }
 
     Byte         GetCommand() const noexcept { return command; }
@@ -30,7 +33,7 @@ class Command {
     virtual bool Execute() noexcept = 0;
 
     template<typename ReturnType>
-    ReturnType GetArguments() noexcept
+    ReturnType WaitForCommandArgs() noexcept
     {
         std::array<Byte, sizeof(ReturnType)> buffer{};
         size_t                               byte_counter = 0;
@@ -45,6 +48,9 @@ class Command {
         return *(reinterpret_cast<ReturnType *>(buffer.data()));
     }
 
+  protected:
+    IIC *i2c = nullptr;
+
   private:
     Byte command;
 };
@@ -58,11 +64,8 @@ class SetPinVoltage : public Command {
     bool Execute() noexcept override
     {
         // wait for arguments from master
-
-        Arguments args = GetArguments<Arguments>();
-
-        USI_TWI_Transmit_Byte(args.pinNumber);
-        USI_TWI_Transmit_Byte(args.voltageLevel);
+        auto args = WaitForCommandArgs<Arguments>();
+        i2c->Send(args);
 
         return true;
     }
@@ -71,6 +74,11 @@ class SetPinVoltage : public Command {
     struct Arguments {
         Byte pinNumber;
         Byte voltageLevel;
+    };
+    struct ReturnType {
+        int someInt = 12345;
+        //        float someFloat = 33.55f;
+        char someChar = 'a';
     };
 
   private:
@@ -84,16 +92,67 @@ class GetInternalCounterValue : public Command {
 
     bool Execute() noexcept override
     {
-        std::array<Byte, sizeof(uint32_t)> buf;
-        *(reinterpret_cast<uint32_t *>(buf.data())) = Timer8::GetCounterValue();
-//        *(reinterpret_cast<uint32_t *>(buf.data())) = 123456;
-
-        for (auto const byteval : buf) {
-            USI_TWI_Transmit_Byte(byteval);
-        }
+        i2c->Send(Timer8::GetCounterValue());
 
         return true;
     }
+
+  protected:
+
+  private:
+};
+
+class CheckVoltages : public Command {
+  public:
+    CheckVoltages()
+      : Command{ 0xC3 }
+      , adc{ ADCHandler::Get() }
+    { }
+
+    bool Execute() noexcept override
+    {
+        auto args = WaitForCommandArgs<Arguments>();
+        i2c->Send(args);
+
+        switch (args.pin) {
+        case SpecialMeasurements::MeasureVCC: CheckVCC(); break;
+        case SpecialMeasurements::MeasureGND: CheckGND(); break;
+        case SpecialMeasurements::MeasureAll: break;
+
+        default:
+            if (args.pin > 31)
+                return false;
+        }
+
+        return false;
+    }
+
+  protected:
+    enum SpecialMeasurements {
+        MeasureAll = 33,
+        MeasureVCC,
+        MeasureGND
+    };
+    struct Arguments {
+        using PinNum = uint8_t;
+        PinNum pin;
+    };
+
+    void CheckVCC() noexcept
+    {
+        adc->SetReference(ADCHandler::Reference::VCC);
+        adc->SetSingleChannel(ADCHandler::SingleChannel::_1v1Ref);
+        i2c->Send(adc->MakeSingleConversion());
+    }
+    void CheckGND() noexcept
+    {
+        adc->SetReference(ADCHandler::Reference::VCC);
+        adc->SetSingleChannel(ADCHandler::SingleChannel::GND);
+        i2c->Send(adc->MakeSingleConversion());
+    }
+
+  private:
+    ADCHandler *adc;
 };
 
 class CommandHandler {
@@ -101,16 +160,25 @@ class CommandHandler {
     using Byte     = uint8_t;
     using CommandT = Byte;
 
-    CommandHandler() { Init(); }
-
+    CommandHandler()
+      : i2c{ IIC::Get() }
+    {
+        Init();
+    }
     [[noreturn]] void MainLoop() noexcept
     {
         Timer8::Init(Timer8::Clock::_1024, Timer8::Waveform::CTC, 78);
+        auto i2c_driver = IIC::Get();
 
         while (true) {
-            if (USI_TWI_Data_In_Receive_Buffer()) {
-                auto twi_data = USI_TWI_Receive_Byte();
-                HandleCommand(twi_data);
+            //            if (USI_TWI_Data_In_Receive_Buffer()) {
+            //                auto twi_data = USI_TWI_Receive_Byte();
+            //                HandleCommand(twi_data);
+            //            }
+            //
+            auto value = i2c_driver->Receive<Byte>();
+            if (value.first) {
+                HandleCommand(value.second);
             }
         }
     }
@@ -123,13 +191,7 @@ class CommandHandler {
         ExecutionCompleted_WaitingForCommand
     };
 
-    void Init() noexcept
-    {
-        void OnSlaveReceive(int);
-
-        sei();
-        USI_TWI_Slave_Initialise(MY_ADDRESS);
-    }
+    void Init() noexcept { }
 
     void HandleCommand(CommandT cmd) noexcept
     {
@@ -146,25 +208,27 @@ class CommandHandler {
             getCounterCmd.Execute();
             break;
 
+        case 0xC3:
+            i2c->Send(ReverseBits(cmd));
+            checkVoltagesCmd.Execute();
+            break;
+
         default: USI_TWI_Transmit_Byte(cmd);
         }
     }
 
     Byte static ReverseBits(Byte data) noexcept { return ~data; }
-    void static WaitForArguments() noexcept
-    {
-        // todo: some watchdog is required here to elliminate foreverloop of waiting for new i2c data;
-
-        while (true) { }
-    }
 
   private:
     auto constexpr static commandsNumber         = 3;
     Byte constexpr static unknownCommandResponse = 0x5a;
     std::array<Byte, commandsNumber> static constexpr commands{ 0xC1, 0xC2, 0xC3 };
 
+    IIC *i2c = nullptr;
+
     CurrentState currentState{ CurrentState::WaitingForNewCommand };
 
     SetPinVoltage           setVoltageCmd;
     GetInternalCounterValue getCounterCmd;
+    CheckVoltages           checkVoltagesCmd;
 };

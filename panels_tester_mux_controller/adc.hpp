@@ -42,23 +42,10 @@ class ADCHandler {
         _64,
         _128
     };
-    ADCHandler()
-    {
-        if (initialized)
-            while (true)
-                ;
 
-        Enable();
-        EnableInterrupt();
-        SetPrescaller(Prescaller::_64);
-        SetReference(Reference::VCC);
-        SetSingleChannel(SingleChannel::_1v1Ref);
-
-        DisableDigitalFunction(0);
-
-        initialized = true;
-    }
-    void Enable() noexcept
+    void static Create() noexcept;
+    ADCHandler static *Get() noexcept { return _this; }
+    void               Enable() noexcept
     {
         PRR &= ~_BV(PRADC);
         ADCSRA |= _BV(ADEN);
@@ -133,6 +120,26 @@ class ADCHandler {
     }
 
   private:
+    ADCHandler()
+    {
+        if (initialized)
+            while (true)
+                ;
+
+        //todo: make configurable
+        Enable();
+        EnableInterrupt();
+        SetPrescaller(Prescaller::_64);
+        SetReference(Reference::VCC);
+        SetSingleChannel(SingleChannel::_1v1Ref);
+
+        DisableDigitalFunction(0);
+
+        initialized = true;
+    }
+
+    ADCHandler static *_this;
+
     bool static initialized;
     bool    newDataArrived = false;
     ResultT lastValue{ 0 };

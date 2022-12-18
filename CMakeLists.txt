@@ -31,6 +31,13 @@ set(CXX_SOURCES
     ${SRC_DIR}/timer.hpp
     ${SRC_DIR}/timer.cpp
 
+    ${SRC_DIR}/iic.hpp
+    ${SRC_DIR}/iic.cpp
+
+    ${SRC_DIR}/my_heap.hpp
+    ${SRC_DIR}/my_heap.cpp
+
+
     )
 set(C_SOURCES
     ${SRC_DIR}/debug_tools.h

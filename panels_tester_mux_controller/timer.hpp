@@ -7,7 +7,7 @@
 class Timer8 {
   public:
     using RegT       = uint8_t;
-    using TimerValue = uint16_t;
+    using TimerValue = uint32_t;
 
     enum class Clock {
         NoClock = 0,
