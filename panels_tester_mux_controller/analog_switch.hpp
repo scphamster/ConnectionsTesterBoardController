@@ -3,20 +3,31 @@
 #include "shifter.hpp"
 
 struct AnalogSwitchPins {
-    using PinNumT = int;
+    using PinNumT = uint8_t;
 
-    PinNumT enable;
-    PinNumT sw0;
-    PinNumT sw1;
-    PinNumT sw2;
-    PinNumT sw3;
+    AnalogSwitchPins() = default;
+    AnalogSwitchPins(PinNumT enable, PinNumT sw0, PinNumT sw1, PinNumT sw2, PinNumT sw3)
+      : data{ sw0, sw1, sw2, sw3, enable }
+    { }
+
+    //    PinNumT enable;
+    //    PinNumT sw0;
+    //    PinNumT sw1;
+    //    PinNumT sw2;
+    //    PinNumT sw3;
+
+    //  private:
+    uint8_t static constexpr numberOfPins = 5;
+    std::array<PinNumT, numberOfPins> data;
 };
 
 template<typename PinControllerT>
 class AnalogSwitch {
   public:
     using PinStateT = typename PinControllerT::PinStateT;
-    using ChannelT  = int;
+    using ChannelT  = uint8_t;
+
+    AnalogSwitch() = default;
 
     AnalogSwitch(AnalogSwitchPins pins_config, PinControllerT *io_ctl) noexcept
       : pinsConfig{ pins_config }
@@ -24,48 +35,44 @@ class AnalogSwitch {
     {
         Disable();
     }
+    [[noreturn]] void UnitTest() noexcept
+    {
+        while (true) {
+            for (auto i = 0; i < 16; i++) {
+                SetChannel(i);
+            }
+        }
+    }
 
     void SetChannel(ChannelT new_channel) noexcept
     {
         if (new_channel >= channelsNumber)
             return;
 
-        if (new_channel bitand _BV(0)) {
-            io->SetPinState(pinsConfig.sw0, PinStateT::High);
-        }
-        else {
-            io->SetPinState(pinsConfig.sw0, PinStateT::Low);
-        }
+        Disable();
 
-        if (new_channel bitand _BV(1)) {
-            io->SetPinState(pinsConfig.sw1, PinStateT::High);
-        }
-        else {
-            io->SetPinState(pinsConfig.sw1, PinStateT::Low);
-        }
+        if (new_channel == pinsState)
+            return;
 
-        if (new_channel bitand _BV(2)) {
-            io->SetPinState(pinsConfig.sw2, PinStateT::High);
+        for (uint8_t pin_counter = 0; pin_counter < 4; pin_counter++) {
+            if ((new_channel bitand _BV(pin_counter)) != (pinsState bitand _BV(pin_counter))) {
+                io->SetPinState(pinsConfig.data[pin_counter],
+                                static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
+            }
         }
-        else {
-            io->SetPinState(pinsConfig.sw2, PinStateT::Low);
-        }
-
-        if (new_channel bitand _BV(3)) {
-            io->SetPinState(pinsConfig.sw3, PinStateT::High);
-        }
-        else {
-            io->SetPinState(pinsConfig.sw3, PinStateT::Low);
-        }
+        pinsState = new_channel;
     }
 
-    void Enable() noexcept { io->SetPinState(pinsConfig.enable, PinStateT::Low); }
-    void Disable() noexcept { io->SetPinState(pinsConfig.enable, PinStateT::High); }
+    void Enable() noexcept { io->SetPinState(pinsConfig.data[4], PinStateT::Low); }
+    void Disable() noexcept { io->SetPinState(pinsConfig.data[4], PinStateT::High); }
 
   protected:
   private:
     auto constexpr static channelsNumber = 16;
+    using PinsStateT                     = uint8_t;
 
     AnalogSwitchPins pinsConfig;
-    PinControllerT  *io;
+
+    PinsStateT      pinsState;
+    PinControllerT *io;
 };

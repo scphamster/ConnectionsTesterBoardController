@@ -26,6 +26,8 @@ set(CXX_SOURCES
     ${SRC_DIR}/command_handler.cpp
 
     ${SRC_DIR}/shifter.hpp
+    ${SRC_DIR}/shifter.cpp
+
     ${SRC_DIR}/analog_switch.hpp
 
     ${SRC_DIR}/timer.hpp
@@ -36,6 +38,9 @@ set(CXX_SOURCES
 
     ${SRC_DIR}/my_heap.hpp
     ${SRC_DIR}/my_heap.cpp
+
+    ${SRC_DIR}/ohm_meter.hpp
+    ${SRC_DIR}/ohm_meter.cpp
 
 
     )

@@ -9,9 +9,9 @@ class PioController {
         Input,
         Output
     };
-    enum class State {
-        High,
-        Low
+    enum class State : bool {
+        High = true,
+        Low = false
     };
 
     PioController() = default;

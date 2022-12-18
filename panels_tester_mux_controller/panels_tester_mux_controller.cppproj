@@ -235,6 +235,9 @@
     <Compile Include="project_configs.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="shifter.cpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="shifter.hpp">
       <SubType>compile</SubType>
     </Compile>
