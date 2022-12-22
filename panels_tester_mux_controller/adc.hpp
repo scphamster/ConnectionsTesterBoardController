@@ -128,7 +128,7 @@ class ADCHandler {
 
         //todo: make configurable
         Enable();
-        EnableInterrupt();
+//        EnableInterrupt();
         SetPrescaller(Prescaller::_64);
         SetReference(Reference::VCC);
         SetSingleChannel(SingleChannel::_1v1Ref);
@@ -138,7 +138,7 @@ class ADCHandler {
         initialized = true;
     }
 
-    ADCHandler static *_this;
+    ADCHandler  static *_this;
 
     bool static initialized;
     bool    newDataArrived = false;

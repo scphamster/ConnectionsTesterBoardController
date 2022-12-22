@@ -27,7 +27,6 @@ class AnalogSwitch {
 
     AnalogSwitch(AnalogSwitchPins pins_config) noexcept
       : pinsConfig{ pins_config }
-      , io{ ShifterC::Get() }
     {
         Disable();
     }
@@ -48,17 +47,14 @@ class AnalogSwitch {
         Disable();
 
         for (uint8_t pin_counter = 0; pin_counter < 4; pin_counter++) {
-            //            if (static_cast<bool>(new_channel bitand _BV(pin_counter)) != static_cast<bool>(pinsState bitand
-            //            _BV(pin_counter))) {
-            io->SetPinState(pinsConfig.data[pin_counter],
-                            static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
-            //            }
+            shifter.SetPinState(pinsConfig.data[pin_counter],
+                                  static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
         }
         pinsState = new_channel;
     }
 
-    void Enable() noexcept { io->SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::Low); }
-    void Disable() noexcept { io->SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::High); }
+    void Enable() noexcept { shifter.SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::Low); }
+    void Disable() noexcept { shifter.SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::High); }
 
   protected:
   private:
@@ -68,5 +64,4 @@ class AnalogSwitch {
     AnalogSwitchPins pinsConfig;
 
     PinsStateT pinsState;
-    ShifterC  *io;
 };

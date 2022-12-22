@@ -24,7 +24,6 @@ class Command {
 
     Command(Byte cmd)
       : command{ cmd }
-      , i2c{ IIC::Get() }
     { }
 
     Byte         GetCommand() const noexcept { return command; }
@@ -34,18 +33,16 @@ class Command {
     template<typename ArgT>
     void AcknowledgeArguments(ArgT args) noexcept
     {
-        i2c->Send(args);
+        i2c.Send(args);
     }
 
     template<typename ReturnType>
     ReturnType WaitForCommandArgs() noexcept
     {
-        return i2c->ReceiveBlocking<ReturnType>();
+        return i2c.ReceiveBlocking<ReturnType>();
     }
 
   protected:
-    IIC *i2c = nullptr;
-
   private:
     Byte command;
 };
@@ -112,7 +109,7 @@ class GetInternalCounterValue : public Command {
       : Command{ check_internal_counter_cmd_id }
     { }
 
-    void Execute(ArgsT dummy_args) noexcept override { i2c->Send(Timer8::GetCounterValue()); }
+    void Execute(ArgsT dummy_args) noexcept override { i2c.Send(Timer8::GetCounterValue()); }
 
   protected:
   private:
@@ -161,16 +158,28 @@ class CheckVoltages : public Command {
     {
         adc->SetReference(ADCHandler::Reference::VCC);
         adc->SetSingleChannel(ADCHandler::SingleChannel::_1v1Ref);
-        i2c->Send(adc->MakeSingleConversion());
+        i2c.Send(adc->MakeSingleConversion());
     }
     void CheckGND() noexcept
     {
         adc->SetReference(ADCHandler::Reference::VCC);
         adc->SetSingleChannel(ADCHandler::SingleChannel::GND);
-        i2c->Send(adc->MakeSingleConversion());
+        i2c.Send(adc->MakeSingleConversion());
     }
-    void CheckAll() noexcept { i2c->Send(meter.GetAllPinsVoltage()); }
-    void CheckOne(PinT pin) noexcept { i2c->Send(meter.GetPinVoltage(pin)); }
+    void CheckAll() noexcept
+    {
+        //        i2c.Send(std::array<uint16_t,10>{
+        //          1
+        //
+        //        });
+        //        meter.GetAllPinsVoltage();
+        i2c.Send(meter.GetAllPinsVoltage());
+    }
+    void CheckOne(PinT pin) noexcept
+    {
+        //        i2c.Send(1234);
+        i2c.Send(meter.GetPinVoltage(pin));
+    }
 
   private:
     ADCHandler     *adc;
@@ -187,8 +196,7 @@ class CommandHandler {
 
     // todo: make prettier
     CommandHandler()
-      : i2c{ IIC::Get() }
-      , meter{ Shifter<shifter_size>::Get() }
+      : meter{}
       , setVoltageCmd{ meter }
       , checkVoltagesCmd{ meter }
       , setOutputVoltageCmd{ meter }
@@ -198,7 +206,7 @@ class CommandHandler {
     [[noreturn]] void MainLoop() noexcept
     {
         while (true) {
-            auto new_command = i2c->Receive<CommandAndArgs>(100);
+            auto new_command = i2c.Receive<CommandAndArgs>(100);
             if (new_command) {
                 HandleCommand(*new_command);
             }
@@ -206,17 +214,19 @@ class CommandHandler {
     }
     [[noreturn]] void UnitTestCommunications() noexcept
     {
+        meter.GetAllPinsVoltage();
+
         while (true) {
             auto byte = USI_TWI_Receive_Byte();
             USI_TWI_Transmit_Byte(byte);
-            //            auto value = i2c->Receive<Byte>();
+            //            auto value = i2c.Receive<Byte>();
             //            if (value) {
-            //                i2c->Send(*value);
+            //                i2c.Send(*value);
             //            }
 
-            //            auto value = i2c->Receive<std::array<Byte, 64>>(400);
+            //            auto value = i2c.Receive<std::array<Byte, 64>>(400);
             //            if (value) {
-            //                i2c->Send(*value);
+            //                i2c.Send(*value);
             //            }
         }
     }
@@ -236,7 +246,7 @@ class CommandHandler {
     void Init() noexcept { }
     void AcknowledgeCommand(CommandAndArgs cmd_and_args) noexcept
     {
-        i2c->Send(CommandAndArgs{ ReverseBits(cmd_and_args.cmd), cmd_and_args.args });
+        i2c.Send(CommandAndArgs{ ReverseBits(cmd_and_args.cmd), cmd_and_args.args });
     }
     Byte static ReverseBits(Byte data) noexcept { return ~data; }
     void HandleCommand(CommandAndArgs cmd_and_args) noexcept
@@ -264,7 +274,7 @@ class CommandHandler {
             setOutputVoltageCmd.Execute(cmd_and_args.args);
             break;
 
-        default: i2c->Send(CommandAndArgs{ unknownCommandResponse, cmd_and_args.args });
+        default: i2c.Send(CommandAndArgs{ unknownCommandResponse, cmd_and_args.args });
         }
     }
     void BackgroundMeasurements() noexcept
@@ -283,8 +293,7 @@ class CommandHandler {
                                                                 check_internal_counter_cmd_id,
                                                                 check_voltages_cmd_id };
 
-    IIC       *i2c = nullptr;
-    Multimeter meter;
+    OhmMeter meter;
 
     CurrentState currentState{ CurrentState::WaitingForNewCommand };
 

@@ -11,7 +11,6 @@ class OhmMeter {
   public:
     using Switch              = AnalogSwitch;
     using PinNumT             = uint8_t;
-    using ShifterC            = Shifter<24>;
     using PinState            = ShifterC::PinStateT;
     using AdcValueT           = ADCHandler::ResultT;
     using AllPinsVoltageValue = std::array<AdcValueT, total_mux_pin_count>;
@@ -21,9 +20,8 @@ class OhmMeter {
         _07       = low_voltage_reference_select_pin,
     };
 
-    OhmMeter(ShifterC *new_pio) noexcept
-      : pio{ new_pio }
-      , adc{ ADCHandler::Get() }
+    OhmMeter() noexcept
+      : adc{ ADCHandler::Get() }
     {
         SelectOutputVoltage(OutputVoltage::_07);
     }
@@ -83,7 +81,7 @@ class OhmMeter {
     void SelectOutputVoltage(OutputVoltage value) noexcept
     {
         if (currentVoltage != value) {
-            pio->SetPinState(static_cast<PinNumT>(value), PinState::High);
+            shifter.SetPinState(static_cast<PinNumT>(value), PinState::High);
             currentVoltage = value;
         }
     }
@@ -113,7 +111,6 @@ class OhmMeter {
     auto constexpr static channelsPairsNum  = Mux16PairNum * 16;
     auto constexpr static adcSensingChannel = ADCHandler::SingleChannel::_0;
     auto constexpr static adcReference      = ADCHandler::Reference::Internal1v1;
-    ShifterC   *pio                         = nullptr;
     ADCHandler *adc                         = nullptr;
     std::array<Switch, Mux16PairNum> static outputMuxes;
     std::array<Switch, Mux16PairNum> static inputMuxes;

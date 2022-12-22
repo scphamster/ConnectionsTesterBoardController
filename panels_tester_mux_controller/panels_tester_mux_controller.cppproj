@@ -232,6 +232,12 @@
     <Compile Include="my_heap.hpp">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="ohm_meter.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="ohm_meter.hpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="pio_controller.cpp">
       <SubType>compile</SubType>
     </Compile>
