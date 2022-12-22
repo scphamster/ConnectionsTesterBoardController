@@ -18,6 +18,9 @@ extern "C" {
 #define USI_SDA_BIT 6
 #define USI_DO_BIT  5
 
+///////////////////////////// Heap //////////////////////////////////
+uint8_t const static cfg_heap_size = 50;
+
 ////////////////////// Mux Section ////////////////////////////////////////////
 uint8_t const static mux_pairs_on_board  = 2;
 uint8_t const static mux_pins_number     = 16;

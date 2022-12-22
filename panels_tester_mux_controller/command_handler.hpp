@@ -29,7 +29,7 @@ class Command {
 
     Byte         GetCommand() const noexcept { return command; }
     Byte         ReverseBits(Byte data) { return ~data; }
-    virtual bool Execute(Byte args) noexcept = 0;
+    virtual void Execute(Byte args) noexcept = 0;
 
     template<typename ArgT>
     void AcknowledgeArguments(ArgT args) noexcept
@@ -60,7 +60,7 @@ class EnableOutputForPin : public Command {
       , meter{ new_meter }
     { }
 
-    bool Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept override final
     {
         if (args == Arguments::SpecialPinConfigurations::DisableAll) {
             meter.DisableAllOutputs();
@@ -69,7 +69,6 @@ class EnableOutputForPin : public Command {
             meter.EnableOutputForPin(args);
         }
 
-        return true;
     }
 
   protected:
@@ -94,11 +93,10 @@ class SetOutputVoltage : public Command {
       , meter{ new_meter }
     { }
 
-    bool Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept override final
     {
         meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args));
 
-        return true;
     }
 
   protected:
@@ -116,11 +114,10 @@ class GetInternalCounterValue : public Command {
       : Command{ check_internal_counter_cmd_id }
     { }
 
-    bool Execute(ArgsT dummy_args) noexcept override
+    void Execute(ArgsT dummy_args) noexcept override
     {
         i2c->Send(Timer8::GetCounterValue());
 
-        return true;
     }
 
   protected:
@@ -139,7 +136,7 @@ class CheckVoltages : public Command {
       , meter{ new_meter }
     { }
 
-    bool Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept override final
     {
         switch (static_cast<SpecialMeasurements>(args)) {
         case SpecialMeasurements::MeasureVCC: CheckVCC(); break;
@@ -148,12 +145,10 @@ class CheckVoltages : public Command {
 
         default:
             if (args > total_mux_pin_count - 1)
-                return false;
 
             CheckOne(args);
         }
 
-        return true;
     }
     AllPinsVoltageT &GetVoltagesTable() noexcept { return tableOfVoltages; }
 
@@ -213,7 +208,6 @@ class CommandHandler {
     [[noreturn]] void MainLoop() noexcept
     {
         while (true) {
-            //            auto new_command = i2c->ReceiveBlocking<CommandAndArgs>();
             auto new_command = i2c->Receive<CommandAndArgs>(100);
             if (new_command) {
                 HandleCommand(*new_command);
@@ -225,7 +219,6 @@ class CommandHandler {
         while (true) {
             auto byte = USI_TWI_Receive_Byte();
             USI_TWI_Transmit_Byte(byte);
-
             //            auto value = i2c->Receive<Byte>();
             //            if (value) {
             //                i2c->Send(*value);

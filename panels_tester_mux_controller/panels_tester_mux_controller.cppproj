@@ -214,6 +214,12 @@
     <Compile Include="debug_tools.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="i2c_driver_cpp\i2c_driver.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="i2c_driver_cpp\i2c_driver.hpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="iic.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -259,6 +265,9 @@
     <Compile Include="USI_TWI_Slave.h">
       <SubType>compile</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="i2c_driver_cpp" />
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>

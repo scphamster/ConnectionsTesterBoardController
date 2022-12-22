@@ -42,6 +42,8 @@ set(CXX_SOURCES
     ${SRC_DIR}/ohm_meter.hpp
     ${SRC_DIR}/ohm_meter.cpp
 
+    ${SRC_DIR}/i2c_driver_cpp/i2c_driver.cpp
+    ${SRC_DIR}/i2c_driver_cpp/i2c_driver.hpp
 
     )
 set(C_SOURCES
@@ -56,7 +58,9 @@ set(C_SOURCES
 
 set(INCLUDE_DIRECTORIES
     ${SRC_DIR}
-    "C:/dev/Libraries/avr-libstdcpp/include"
+    ${SRC_DIR}/i2c_driver_cpp
+    "C:/dev/Libraries/avr-libstdcpp/include" # standard library
+
     )
 
 set_source_files_properties(${CXX_SOURCES} PROPERTIES COMPILE_FLAGS "${C_CXX_COMPILE_FLAGS} ${CXX_COMPILE_FLAGS}")

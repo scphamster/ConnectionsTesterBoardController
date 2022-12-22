@@ -30,7 +30,7 @@ class Shifter {
         std::array<PinStateT, NumberOfPins> newStateOfPins;
     };
 
-    void static Create(ShifterFunctionalPins const shifter_pins_configs) noexcept
+    void static  Create(ShifterFunctionalPins const shifter_pins_configs) noexcept
     {
         _this  = heap.GetMemory<Shifter<shifter_size>>();
         *_this = Shifter<24>{ shifter_pins_configs };
