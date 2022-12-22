@@ -7,12 +7,12 @@
 #include "analog_switch.hpp"
 #include "adc.hpp"
 
-template<typename PioControllerT, size_t Mux16PairsNum>
 class OhmMeter {
   public:
-    using Switch              = AnalogSwitch<PioControllerT>;
+    using Switch              = AnalogSwitch;
     using PinNumT             = uint8_t;
-    using PinState            = typename PioControllerT::PinStateT;
+    using ShifterC            = Shifter<24>;
+    using PinState            = ShifterC::PinStateT;
     using AdcValueT           = ADCHandler::ResultT;
     using AllPinsVoltageValue = std::array<AdcValueT, total_mux_pin_count>;
     enum class OutputVoltage : uint8_t {
@@ -21,23 +21,11 @@ class OhmMeter {
         _07       = low_voltage_reference_select_pin,
     };
 
-    OhmMeter(PioControllerT                             *new_pio,
-             std::array<AnalogSwitchPins, Mux16PairsNum> output_mux_pins,
-             std::array<AnalogSwitchPins, Mux16PairsNum> input_mux_pins) noexcept
+    OhmMeter(ShifterC *new_pio) noexcept
       : pio{ new_pio }
       , adc{ ADCHandler::Get() }
     {
         SelectOutputVoltage(OutputVoltage::_07);
-
-        for (auto switch_num = 0; auto &out_mux : outputMuxes) {
-            out_mux = Switch{ output_mux_pins[switch_num], pio };
-            switch_num++;
-        }
-
-        for (auto switch_num = 0; auto &in_mux : inputMuxes) {
-            in_mux = Switch{ input_mux_pins[switch_num], pio };
-            switch_num++;
-        }
     }
 
     [[noreturn]] void UnitTest() noexcept
@@ -121,13 +109,14 @@ class OhmMeter {
     void SetVoltageAtPin(PinNumT pin) noexcept { }
 
   private:
-    auto constexpr static channelsPairsNum  = Mux16PairsNum * 16;
+    auto constexpr static Mux16PairNum      = 2;
+    auto constexpr static channelsPairsNum  = Mux16PairNum * 16;
     auto constexpr static adcSensingChannel = ADCHandler::SingleChannel::_0;
     auto constexpr static adcReference      = ADCHandler::Reference::Internal1v1;
-    PioControllerT                   *pio   = nullptr;
-    ADCHandler                       *adc   = nullptr;
-    std::array<Switch, Mux16PairsNum> outputMuxes;
-    std::array<Switch, Mux16PairsNum> inputMuxes;
+    ShifterC   *pio                         = nullptr;
+    ADCHandler *adc                         = nullptr;
+    std::array<Switch, Mux16PairNum> static outputMuxes;
+    std::array<Switch, Mux16PairNum> static inputMuxes;
 
     OutputVoltage currentVoltage = OutputVoltage::Undefined;
 };

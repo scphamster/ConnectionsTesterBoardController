@@ -17,17 +17,17 @@ struct AnalogSwitchPins {
     std::array<PinNumT, numberOfPins> data;
 };
 
-template<typename PinControllerT>
 class AnalogSwitch {
   public:
-    using PinStateT = typename PinControllerT::PinStateT;
+    using ShifterC  = Shifter<24>;
+    using PinStateT = ShifterC::PinStateT;
     using ChannelT  = uint8_t;
 
     AnalogSwitch() = default;
 
-    AnalogSwitch(AnalogSwitchPins pins_config, PinControllerT *io_ctl) noexcept
+    AnalogSwitch(AnalogSwitchPins pins_config) noexcept
       : pinsConfig{ pins_config }
-      , io{ io_ctl }
+      , io{ ShifterC::Get() }
     {
         Disable();
     }
@@ -45,13 +45,14 @@ class AnalogSwitch {
         if (new_channel == pinsState)
             return;
 
-            Disable();
+        Disable();
 
         for (uint8_t pin_counter = 0; pin_counter < 4; pin_counter++) {
-//            if (static_cast<bool>(new_channel bitand _BV(pin_counter)) != static_cast<bool>(pinsState bitand _BV(pin_counter))) {
-                io->SetPinState(pinsConfig.data[pin_counter],
-                                static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
-//            }
+            //            if (static_cast<bool>(new_channel bitand _BV(pin_counter)) != static_cast<bool>(pinsState bitand
+            //            _BV(pin_counter))) {
+            io->SetPinState(pinsConfig.data[pin_counter],
+                            static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
+            //            }
         }
         pinsState = new_channel;
     }
@@ -66,6 +67,6 @@ class AnalogSwitch {
 
     AnalogSwitchPins pinsConfig;
 
-    PinsStateT      pinsState;
-    PinControllerT *io;
+    PinsStateT pinsState;
+    ShifterC  *io;
 };

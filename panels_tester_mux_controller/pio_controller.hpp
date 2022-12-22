@@ -28,7 +28,7 @@ class PioController {
         }
     }
 
-    void static SetMode(PinNumT pin, Mode new_mode) noexcept
+    void static constexpr SetMode(PinNumT pin, Mode new_mode) noexcept
     {
         auto pin_number_in_current_port = pin % 8;
 

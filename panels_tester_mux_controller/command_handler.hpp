@@ -52,7 +52,7 @@ class Command {
 
 class EnableOutputForPin : public Command {
   public:
-    using Multimeter = OhmMeter<Shifter<shifter_size>, mux_pairs_on_board>;
+    using Multimeter = OhmMeter;
     using PinVoltage = Multimeter::OutputVoltage;
 
     EnableOutputForPin(Multimeter &new_meter)
@@ -68,7 +68,6 @@ class EnableOutputForPin : public Command {
         else {
             meter.EnableOutputForPin(args);
         }
-
     }
 
   protected:
@@ -85,7 +84,7 @@ class EnableOutputForPin : public Command {
 
 class SetOutputVoltage : public Command {
   public:
-    using Multimeter = OhmMeter<Shifter<shifter_size>, mux_pairs_on_board>;
+    using Multimeter = OhmMeter;
     using PinVoltage = Multimeter::OutputVoltage;
 
     SetOutputVoltage(Multimeter &new_meter)
@@ -96,7 +95,6 @@ class SetOutputVoltage : public Command {
     void Execute(ArgsT args) noexcept override final
     {
         meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args));
-
     }
 
   protected:
@@ -114,11 +112,7 @@ class GetInternalCounterValue : public Command {
       : Command{ check_internal_counter_cmd_id }
     { }
 
-    void Execute(ArgsT dummy_args) noexcept override
-    {
-        i2c->Send(Timer8::GetCounterValue());
-
-    }
+    void Execute(ArgsT dummy_args) noexcept override { i2c->Send(Timer8::GetCounterValue()); }
 
   protected:
   private:
@@ -126,7 +120,7 @@ class GetInternalCounterValue : public Command {
 
 class CheckVoltages : public Command {
   public:
-    using Multimeter      = OhmMeter<Shifter<shifter_size>, mux_pairs_on_board>;
+    using Multimeter      = OhmMeter;
     using PinT            = uint8_t;
     using AllPinsVoltageT = Multimeter::AllPinsVoltageValue;
 
@@ -146,9 +140,8 @@ class CheckVoltages : public Command {
         default:
             if (args > total_mux_pin_count - 1)
 
-            CheckOne(args);
+                CheckOne(args);
         }
-
     }
     AllPinsVoltageT &GetVoltagesTable() noexcept { return tableOfVoltages; }
 
@@ -190,15 +183,12 @@ class CommandHandler {
     using Byte       = uint8_t;
     using CommandT   = Byte;
     using ArgsT      = Byte;
-    using Multimeter = OhmMeter<Shifter<shifter_size>, mux_pairs_on_board>;
+    using Multimeter = OhmMeter;
 
     // todo: make prettier
     CommandHandler()
       : i2c{ IIC::Get() }
-      , meter{ Shifter<shifter_size>::Get(),
-               std::array<AnalogSwitchPins, 2>{ AnalogSwitchPins{ 10, 14, 13, 12, 11 },
-                                                AnalogSwitchPins{ 15, 19, 18, 17, 16 } },
-               std::array<AnalogSwitchPins, 2>{ AnalogSwitchPins{ 0, 4, 3, 2, 1 }, AnalogSwitchPins{ 5, 9, 8, 7, 6 } } }
+      , meter{ Shifter<shifter_size>::Get() }
       , setVoltageCmd{ meter }
       , checkVoltagesCmd{ meter }
       , setOutputVoltageCmd{ meter }
