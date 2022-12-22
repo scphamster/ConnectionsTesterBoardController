@@ -18,23 +18,19 @@ struct ShifterFunctionalPins {
     PinNumT latch;
 };
 
-
 template<size_t NumberOfPins>
 class Shifter {
   public:
     using PinNumT     = uint8_t;
     using PulseCountT = uint8_t;
-    enum class PinStateT : bool {
-        Low  = false,
-        High = true
-    };
+    using PinStateT   = PioController::State;
 
     struct AllPinsCommand {
-        std::array<bool, NumberOfPins> affectedPins;
+        std::array<bool, NumberOfPins>      affectedPins;
         std::array<PinStateT, NumberOfPins> newStateOfPins;
     };
 
-    void static Create(ShifterFunctionalPins shifter_pins_configs) noexcept
+    void static Create(ShifterFunctionalPins const shifter_pins_configs) noexcept
     {
         _this  = heap.GetMemory<Shifter<shifter_size>>();
         *_this = Shifter<24>{ shifter_pins_configs };
@@ -50,16 +46,29 @@ class Shifter {
     void EnableOutput() noexcept { PioController::SetState(pinsConfigs.outEnable, PioController::State::Low); }
     void DisableOutput() noexcept { PioController::SetState(pinsConfigs.outEnable, PioController::State::High); }
     template<size_t ArraySize>
-    void SetData(std::array<PinStateT, ArraySize> pins_data) noexcept
+    void SetData(std::array<PinStateT, ArraySize> const &pins_data) noexcept
     {
         DoReset();
 
-        std::for_each(pins_data.rbegin(), pins_data.rend(), [this](auto const &it) {
+        std::for_each(pins_data.crbegin(), pins_data.crend(), [this](auto const &it) {
             SetDataPinValue(it);
             MakeSingleStrobePulse();
         });
 
         SaveStateToLatch();
+    }
+
+    void TestSetData() noexcept
+    {
+        DoReset();
+        SaveStateToLatch();
+    }
+
+    std::array<PinStateT, shifter_size> TestBigArray(std::array<PinStateT, shifter_size>  const &arr) noexcept {
+        SetDataPinValue(arr.at(5));
+//        dummyValue = arr.at(5);
+        return arr;
+
     }
     void SetPinState(PinNumT pin, PinStateT new_state) noexcept
     {
@@ -69,7 +78,8 @@ class Shifter {
         pinsState[pin] = new_state;
         SetData(pinsState);
     }
-    void SetPinsState(AllPinsCommand new_state) noexcept {
+    void SetPinsState(AllPinsCommand new_state) noexcept
+    {
         for (uint8_t pin_counter = 0; auto &pin_state : pinsState) {
             if (new_state.affectedPins[pin_counter]) {
                 pin_state = new_state.newStateOfPins[pin_counter];
@@ -98,6 +108,24 @@ class Shifter {
         }
     }
 
+    // todo: make protected after test
+    void SetDataPinValue(PinStateT state) noexcept
+    {
+        if (dataPinState == state)
+            return;
+
+        PioController::SetState(pinsConfigs.data, state);
+
+        dataPinState = state;
+    }
+    // todo: make protected after test
+
+    void SaveStateToLatch() const noexcept
+    {
+        PioController::SetState(pinsConfigs.latch, PioController::State::High);
+        PioController::SetState(pinsConfigs.latch, PioController::State::Low);
+    }
+
   protected:
     void MakeSingleStrobePulse() const noexcept
     {
@@ -111,25 +139,6 @@ class Shifter {
             pulses_count--;
         }
     }
-    void SaveStateToLatch() const noexcept
-    {
-        PioController::SetState(pinsConfigs.latch, PioController::State::High);
-        PioController::SetState(pinsConfigs.latch, PioController::State::Low);
-    }
-    void SetDataPinValue(PinStateT state) noexcept
-    {
-        if (dataPinState == state)
-            return;
-
-        if (static_cast<bool>(state)) {
-            PioController::SetState(pinsConfigs.data, PioController::State::High);
-        }
-        else {
-            PioController::SetState(pinsConfigs.data, PioController::State::Low);
-        }
-
-        dataPinState = state;
-    }
     void SetReset() const noexcept { PioController::SetState(pinsConfigs.reset, PioController::State::Low); }
     void ReleaseReset() const noexcept { PioController::SetState(pinsConfigs.reset, PioController::State::High); }
     void DoReset() const noexcept
@@ -139,7 +148,7 @@ class Shifter {
     }
 
   private:
-    Shifter(ShifterFunctionalPins shifter_pins_configs) noexcept
+    Shifter(ShifterFunctionalPins const shifter_pins_configs) noexcept
       : pinsConfigs{ shifter_pins_configs }
     {
         auto pio = PioController{};
@@ -167,4 +176,5 @@ class Shifter {
     std::array<PinStateT, NumberOfPins> pinsState{};
 
     PinStateT dataPinState = PinStateT::Low;
+    static PinStateT dummyValue;
 };

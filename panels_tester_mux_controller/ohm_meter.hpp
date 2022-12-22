@@ -12,8 +12,14 @@ class OhmMeter {
   public:
     using Switch              = AnalogSwitch<PioControllerT>;
     using PinNumT             = uint8_t;
+    using PinState            = typename PioControllerT::PinStateT;
     using AdcValueT           = ADCHandler::ResultT;
     using AllPinsVoltageValue = std::array<AdcValueT, total_mux_pin_count>;
+    enum class OutputVoltage : uint8_t {
+        Undefined = 0,
+        _09       = high_voltage_reference_select_pin,
+        _07       = low_voltage_reference_select_pin,
+    };
 
     OhmMeter(PioControllerT                             *new_pio,
              std::array<AnalogSwitchPins, Mux16PairsNum> output_mux_pins,
@@ -21,6 +27,8 @@ class OhmMeter {
       : pio{ new_pio }
       , adc{ ADCHandler::Get() }
     {
+        SelectOutputVoltage(OutputVoltage::_07);
+
         for (auto switch_num = 0; auto &out_mux : outputMuxes) {
             out_mux = Switch{ output_mux_pins[switch_num], pio };
             switch_num++;
@@ -36,7 +44,7 @@ class OhmMeter {
     {
         while (true) {
             for (auto i = 0; i < channelsPairsNum; i++) {
-                EnableOutputChannel(i);
+                EnableOutputForPin(i);
                 EnableInputChannel(i);
             }
         }
@@ -44,11 +52,10 @@ class OhmMeter {
 
     AdcValueT GetPinVoltage(PinNumT pin) noexcept
     {
-        EnableInputChannel(pin);
         ConfigureADCForMeasurement();
+        EnableInputChannel(pin);
         return adc->MakeSingleConversion();
     }
-
     AllPinsVoltageValue GetAllPinsVoltage() noexcept
     {
         ConfigureADCForMeasurement();
@@ -65,7 +72,7 @@ class OhmMeter {
         return array_of_voltages;
     }
 
-    void EnableOutputChannel(PinNumT ch)
+    void EnableOutputForPin(PinNumT ch)
     {
         auto mux_num = ch / 16;
         ch %= 16;
@@ -85,12 +92,12 @@ class OhmMeter {
         inputMuxes[mux_num].SetChannel(ch);
         inputMuxes[mux_num].Enable();
     }
-
-  protected:
-    void ConfigureADCForMeasurement() noexcept
+    void SelectOutputVoltage(OutputVoltage value) noexcept
     {
-        adc->SetReference(adcReference);
-        adc->SetSingleChannel(adcSensingChannel);
+        if (currentVoltage != value) {
+            pio->SetPinState(static_cast<PinNumT>(value), PinState::High);
+            currentVoltage = value;
+        }
     }
     void DisableAllOutputs() noexcept
     {
@@ -105,6 +112,12 @@ class OhmMeter {
         }
     }
 
+  protected:
+    void ConfigureADCForMeasurement() noexcept
+    {
+        adc->SetReference(adcReference);
+        adc->SetSingleChannel(adcSensingChannel);
+    }
     void SetVoltageAtPin(PinNumT pin) noexcept { }
 
   private:
@@ -115,4 +128,6 @@ class OhmMeter {
     ADCHandler                       *adc   = nullptr;
     std::array<Switch, Mux16PairsNum> outputMuxes;
     std::array<Switch, Mux16PairsNum> inputMuxes;
+
+    OutputVoltage currentVoltage = OutputVoltage::Undefined;
 };

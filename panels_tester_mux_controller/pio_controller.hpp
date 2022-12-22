@@ -11,12 +11,12 @@ class PioController {
     };
     enum class State : bool {
         High = true,
-        Low = false
+        Low  = false
     };
 
     PioController() = default;
 
-    void static SetState(PinNumT pin, State new_state) noexcept
+    void static constexpr SetState(PinNumT pin, State new_state) noexcept
     {
         auto pin_number_in_current_port = pin % 8;
 

@@ -26,10 +26,8 @@
 #include "avr/io.h"
 #include "avr/interrupt.h"
 
-//test
+// test
 #include "debug_tools.h"
-
-
 
 #ifdef USIDR
 #include "USI_TWI_Slave.h"
@@ -38,7 +36,7 @@
 extern "C" {
 #endif
 //********** Buffer **********//
-uint8_t TWI_Buffer[TWI_BUFFER_SIZE];
+volatile uint8_t TWI_Buffer[TWI_BUFFER_SIZE];
 
 //********** Static Variables **********//
 
@@ -46,13 +44,13 @@ static unsigned char          TWI_slaveAddress;
 static volatile unsigned char USI_TWI_Overflow_State;
 
 /*=========================> Locals <=======================================*/
-static uint8_t         *TWI_RxBuf = TWI_Buffer;
+static volatile uint8_t         *TWI_RxBuf = TWI_Buffer;
 static volatile uint8_t TWI_RxHead;
 static volatile uint8_t TWI_RxTail;
 
-static uint8_t         *TWI_TxBuf = TWI_Buffer + TWI_RX_BUFFER_SIZE;
-static volatile uint8_t TWI_TxHead;
-static volatile uint8_t TWI_TxTail;
+static volatile uint8_t *TWI_TxBuf = TWI_Buffer + TWI_RX_BUFFER_SIZE;
+static volatile uint8_t  TWI_TxHead;
+static volatile uint8_t  TWI_TxTail;
 
 void
 Flush_TWI_Buffers(void)
@@ -78,10 +76,10 @@ USI_TWI_Slave_Initialise(unsigned char TWI_ownAddress)
     USI_TWI_On_Slave_Transmit = 0;
     USI_TWI_On_Slave_Receive  = 0;
 
-    USI_PORT |= (1 << USI_SCL_BIT);         // Set SCL high
-    USI_PORT |= (1 << USI_SDA_BIT);            // Set SDA high
-    USI_DDR |= (1 << USI_SCL_BIT);          // Set SCL as output
-    USI_DDR &= ~(1 << USI_SDA_BIT);            // Set SDA as input
+    USI_PORT |= (1 << USI_SCL_BIT);           // Set SCL high
+    USI_PORT |= (1 << USI_SDA_BIT);           // Set SDA high
+    USI_DDR |= (1 << USI_SCL_BIT);            // Set SCL as output
+    USI_DDR &= ~(1 << USI_SDA_BIT);           // Set SDA as input
     USICR = (1 << USISIE) | (0 << USIOIE) |   // Enable Start Condition Interrupt. Disable Overflow Interrupt.
             (1 << USIWM1) | (0 << USIWM0) |   // Set USI in Two-wire mode. No USI Counter overflow prior
                                               // to first Start Condition (potential failure)
@@ -95,9 +93,9 @@ void
 USI_TWI_Slave_Disable()
 {
     USI_DDR &= ~(1 << USI_SCL_BIT);   // Set SCL as input
-    USI_DDR &= ~(1 << USI_SDA_BIT);      // Set SDA as input
-    USICR = 0x00;                       // Disable USI
-    USISR = 0xF0;                       // Clear all flags and reset overflow counter
+    USI_DDR &= ~(1 << USI_SDA_BIT);   // Set SDA as input
+    USICR = 0x00;                     // Disable USI
+    USISR = 0xF0;                     // Clear all flags and reset overflow counter
 }
 
 // Puts data in the transmission buffer, Waits if buffer is full.

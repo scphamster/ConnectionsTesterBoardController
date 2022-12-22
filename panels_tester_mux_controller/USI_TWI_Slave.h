@@ -56,7 +56,7 @@ typedef unsigned char uint8_t;
 ///////////////// Driver Buffer Definitions //////////////////////
 //////////////////////////////////////////////////////////////////
 // 1,2,4,8,16,32,64,128 or 256 bytes are allowed buffer sizes
-extern uint8_t TWI_Buffer[];
+extern volatile uint8_t TWI_Buffer[];
 
 #define TWI_RX_BUFFER_SIZE (16)
 #define TWI_RX_BUFFER_MASK (TWI_RX_BUFFER_SIZE - 1)

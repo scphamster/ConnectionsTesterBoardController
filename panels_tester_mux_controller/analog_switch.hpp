@@ -10,11 +10,7 @@ struct AnalogSwitchPins {
       : data{ sw0, sw1, sw2, sw3, enable }
     { }
 
-    //    PinNumT enable;
-    //    PinNumT sw0;
-    //    PinNumT sw1;
-    //    PinNumT sw2;
-    //    PinNumT sw3;
+    PinNumT GetEnablePinNum() const noexcept { return data[4]; }
 
     //  private:
     uint8_t static constexpr numberOfPins = 5;
@@ -46,25 +42,22 @@ class AnalogSwitch {
 
     void SetChannel(ChannelT new_channel) noexcept
     {
-        if (new_channel >= channelsNumber)
-            return;
-
-        Disable();
-
         if (new_channel == pinsState)
             return;
 
+            Disable();
+
         for (uint8_t pin_counter = 0; pin_counter < 4; pin_counter++) {
-            if ((new_channel bitand _BV(pin_counter)) != (pinsState bitand _BV(pin_counter))) {
+//            if (static_cast<bool>(new_channel bitand _BV(pin_counter)) != static_cast<bool>(pinsState bitand _BV(pin_counter))) {
                 io->SetPinState(pinsConfig.data[pin_counter],
                                 static_cast<PinStateT>(static_cast<bool>(new_channel bitand _BV(pin_counter))));
-            }
+//            }
         }
         pinsState = new_channel;
     }
 
-    void Enable() noexcept { io->SetPinState(pinsConfig.data[4], PinStateT::Low); }
-    void Disable() noexcept { io->SetPinState(pinsConfig.data[4], PinStateT::High); }
+    void Enable() noexcept { io->SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::Low); }
+    void Disable() noexcept { io->SetPinState(pinsConfig.GetEnablePinNum(), PinStateT::High); }
 
   protected:
   private:

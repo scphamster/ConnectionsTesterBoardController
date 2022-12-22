@@ -38,11 +38,17 @@ class Timer8 {
 
         TCCR0A = (static_cast<RegT>(wave) bitand 0x03);
         TCCR0B = ((static_cast<RegT>(wave) bitand 0x04) << 1) bitor (static_cast<RegT>(clock) bitand 0x07);
-        TIMSK0 = 0x02; // compare A interrupt
+        OCR0A  = OCR_value;
+        TIMSK0 = 0x02;
     }
 
     void static IncrementCounter() noexcept { counter++; }
     TimerValue static GetCounterValue() noexcept { return counter; }
+    void static Run() noexcept
+    {
+        TIMSK0 = 0x02;   // compare A interrupt
+    }
+    void static Stop() noexcept { TIMSK0 = 0; }
 
   protected:
   private:
