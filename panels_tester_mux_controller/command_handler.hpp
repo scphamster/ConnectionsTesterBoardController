@@ -166,20 +166,8 @@ class CheckVoltages : public Command {
         adc->SetSingleChannel(ADCHandler::SingleChannel::GND);
         i2c.Send(adc->MakeSingleConversion());
     }
-    void CheckAll() noexcept
-    {
-        //        i2c.Send(std::array<uint16_t,10>{
-        //          1
-        //
-        //        });
-        //        meter.GetAllPinsVoltage();
-        i2c.Send(meter.GetAllPinsVoltage());
-    }
-    void CheckOne(PinT pin) noexcept
-    {
-        //        i2c.Send(1234);
-        i2c.Send(meter.GetPinVoltage(pin));
-    }
+    void CheckAll() noexcept { i2c.Send(meter.GetAllPinsVoltage()); }
+    void CheckOne(PinT pin) noexcept { i2c.Send(meter.GetPinVoltage(pin)); }
 
   private:
     ADCHandler     *adc;

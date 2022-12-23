@@ -16,8 +16,6 @@ set(CXX_SOURCES
 
     ${SRC_DIR}/adc.cpp
     ${SRC_DIR}/adc.hpp
-    ${SRC_DIR}/adc_interrupt_handler.h
-    ${SRC_DIR}/adc_interrupt_handler.c
 
     ${SRC_DIR}/pio_controller.cpp
     ${SRC_DIR}/pio_controller.hpp

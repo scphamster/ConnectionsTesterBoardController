@@ -34,8 +34,8 @@ else ()
 endif ()
 
 ################# COMPILER FLAGS ####################
-set(C_CXX_COMPILER_OPTIONS_DEBUG "-Og -g3 -DDEBUG")
-set(C_CXX_COMPILER_OPTIONS_RELEASE "-Os")
+set(C_CXX_COMPILER_OPTIONS_DEBUG "-Og -g3 -DDEBUG -ffunction-sections -fdata-sections -fpack-struct -fshort-enums ")
+set(C_CXX_COMPILER_OPTIONS_RELEASE "-O3 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -funsigned-char -funsigned-bitfields -DNDEBUG")
 set(CXX_COMPILER_OPTIONS_RELEASE "-fno-rtti")
 set(COMPILER_WARNINGS_SETTINGS "-Wall -Werror=return-type -Wreturn-local-addr -Wno-volatile -Wno-unused-function -Wno-unused-variable -Wno-unused-local-typedefs ")
 set(BOARD_CONFIGS_COMPILE_FLAGS "-D__AVR_ATtiny84A__ ")
