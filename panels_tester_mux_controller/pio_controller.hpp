@@ -16,7 +16,7 @@ class PioController {
 
     PioController() = default;
 
-    void static constexpr SetState(PinNumT pin, State new_state) noexcept
+    void static SetState(PinNumT pin, State new_state) noexcept
     {
         auto pin_number_in_current_port = pin % 8;
 
@@ -28,7 +28,7 @@ class PioController {
         }
     }
 
-    void static constexpr SetMode(PinNumT pin, Mode new_mode) noexcept
+    void static SetMode(PinNumT pin, Mode new_mode) noexcept
     {
         auto pin_number_in_current_port = pin % 8;
 
@@ -37,6 +37,15 @@ class PioController {
         }
         else if (new_mode == Mode::Output) {
             (*PinToDDR(pin)) |= (1 << pin_number_in_current_port);
+        }
+    }
+    [[noreturn]] void static UnitTest()
+    {
+        SetMode(8, Mode::Output);
+
+        while (true) {
+            SetState(8, State::Low);
+            SetState(8, State::High);
         }
     }
 

@@ -140,12 +140,12 @@ class Shifter {
     // todo: make protected after test
     void static SetDataPinValue(PinStateT state) noexcept
     {
-        if (dataPinState == state)
-            return;
+//        if (dataPinState == state)
+//            return;
 
         PioController::SetState(pinsConfigs.data, state);
 
-        dataPinState = state;
+//        dataPinState = state;
     }
     // todo: make protected after test
 
