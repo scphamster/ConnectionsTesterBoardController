@@ -16,7 +16,7 @@ class PioController {
 
     PioController() = default;
 
-    void static SetState(PinNumT pin, State new_state) noexcept
+    [[gnu::hot]] void static SetState(PinNumT pin, State new_state) noexcept
     {
         auto pin_number_in_current_port = pin % 8;
 
@@ -50,7 +50,7 @@ class PioController {
     }
 
   protected:
-    RegPtrT static PinToPort(PinNumT pin) noexcept
+    [[gnu::hot]] RegPtrT static PinToPort(PinNumT pin) noexcept
     {
         if (pin < 8) {
             return &PORTA;
@@ -61,7 +61,7 @@ class PioController {
         else
             return nullptr;
     }
-    RegPtrT static PinToDDR(PinNumT pin) noexcept
+    [[gnu::hot]] RegPtrT static PinToDDR(PinNumT pin) noexcept
     {
         if (pin < 8) {
             return &DDRA;

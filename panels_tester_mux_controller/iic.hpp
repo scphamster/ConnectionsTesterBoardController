@@ -22,7 +22,20 @@ class IIC {
         Slave
     };
 
-    IIC(Role role, AddrT address);
+    IIC(Role role, AddrT address)
+    {
+        if (role == Role::Slave) {
+            USI_TWI_Slave_Initialise(address);
+        }
+        else {
+            while (true)
+                ;
+        }
+    }
+
+    void SetNewAddress(AddrT new_address) noexcept {
+        USI_TWI_Slave_Initialise(new_address);
+    }
 
     [[nodiscard]] bool RXBufferHasData() const noexcept { return USI_TWI_Data_In_Receive_Buffer(); }
     template<typename ReturnType>
@@ -59,12 +72,14 @@ class IIC {
     template<typename ReturnType>
     std::optional<ReturnType> Receive(uint32_t timeout_ms) noexcept
     {
-        ReturnType retval;
-        auto      *buffer = reinterpret_cast<std::array<Byte, sizeof(ReturnType)> *>(&retval);
+//        ReturnType retval;
+//        auto      *buffer = reinterpret_cast<std::array<Byte, sizeof(ReturnType)> *>(&retval);
+
+        auto buffer = std::array<Byte, sizeof(ReturnType)>{};
 
         auto endTime = Timer8::GetCounterValue() + timeout_ms / timer8_period_ms;
 
-        for (auto &byte : *buffer) {
+        for (auto &byte : buffer) {
             while (USI_TWI_Data_In_Receive_Buffer() == 0) {
                 if (endTime < Timer8::GetCounterValue()) {
                     return std::nullopt;
@@ -73,19 +88,14 @@ class IIC {
             byte = USI_TWI_Receive_Byte();
         }
 
-        return retval;
+        return *(reinterpret_cast<ReturnType *>(buffer.data()));
     }
-
     template<typename ValueT>
-    bool Send(ValueT value) noexcept
+    void Send(ValueT value) noexcept
     {
-        std::array<Byte, sizeof(ValueT)> *array = reinterpret_cast<std::array<Byte, sizeof(ValueT)> *>(&value);
-
-        for (auto &byte : *array) {
+        for (auto &byte : *reinterpret_cast<std::array<Byte, sizeof(ValueT)> *>(&value)) {
             USI_TWI_Transmit_Byte(byte);
         }
-
-        return true;
     }
 
   protected:

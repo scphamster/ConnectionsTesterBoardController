@@ -80,8 +80,17 @@ class OhmMeter {
     }
     void SelectOutputVoltage(OutputVoltage value) noexcept
     {
-        if (currentVoltage != value) {
+        if (currentVoltage == value)
+            return;
+
+        if (value == OutputVoltage::_07) {
             shifter.SetPinState(static_cast<PinNumT>(value), PinState::High);
+            shifter.SetPinState(static_cast<PinNumT>(OutputVoltage::_09), PinState::Low);
+            currentVoltage = value;
+        }
+        else if (value == OutputVoltage::_09) {
+            shifter.SetPinState(static_cast<PinNumT>(value), PinState::High);
+            shifter.SetPinState(static_cast<PinNumT>(OutputVoltage::_07), PinState::Low);
             currentVoltage = value;
         }
     }

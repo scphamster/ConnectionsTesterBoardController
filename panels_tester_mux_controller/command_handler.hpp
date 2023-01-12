@@ -15,7 +15,7 @@
 #include "iic.hpp"
 #include "ohm_meter.hpp"
 
-#define MY_ADDRESS 0x25
+#define MY_ADDRESS 0x2A
 
 class Command {
   public:
@@ -89,7 +89,7 @@ class SetOutputVoltage : public Command {
       , meter{ new_meter }
     { }
 
-    void Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept final
     {
         meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args));
     }

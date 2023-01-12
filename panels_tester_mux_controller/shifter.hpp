@@ -75,11 +75,11 @@ class Shifter {
     void static EnableOutput() noexcept { PioController::SetState(pinsConfigs.outEnable, PioController::State::Low); }
     void static DisableOutput() noexcept { PioController::SetState(pinsConfigs.outEnable, PioController::State::High); }
     template<size_t ArraySize>
-    void static SetData(std::array<PinStateT, ArraySize> const &pins_data) noexcept
+    [[gnu::hot]] void static SetData(std::array<PinStateT, ArraySize> const &pins_data) noexcept
     {
-        DoReset();
+        ResetState();
 
-        std::for_each(pins_data.crbegin(), pins_data.crend(), [](auto const &it) {
+        std::for_each(pins_data.crbegin() + 1, pins_data.crend(), [](auto const it) {
             SetDataPinValue(it);
             MakeSingleStrobePulse();
         });
@@ -89,7 +89,7 @@ class Shifter {
 
     void static TestSetData() noexcept
     {
-        DoReset();
+        ResetState();
         SaveStateToLatch();
     }
 
@@ -99,7 +99,7 @@ class Shifter {
         //        dummyValue = arr.at(5);
         return arr;
     }
-    void static SetPinState(PinNumT pin, PinStateT new_state) noexcept
+    [[gnu::hot]]void static SetPinState(PinNumT pin, PinStateT new_state) noexcept
     {
         if (pinsState[pin] == new_state)
             return;
@@ -137,25 +137,13 @@ class Shifter {
         }
     }
 
-    // todo: make protected after test
-    void static SetDataPinValue(PinStateT state) noexcept
-    {
-//        if (dataPinState == state)
-//            return;
-
-        PioController::SetState(pinsConfigs.data, state);
-
-//        dataPinState = state;
-    }
-    // todo: make protected after test
-
+  protected:
+    void static SetDataPinValue(PinStateT state) noexcept { PioController::SetState(pinsConfigs.data, state); }
     void static SaveStateToLatch() noexcept
     {
         PioController::SetState(pinsConfigs.latch, PioController::State::High);
         PioController::SetState(pinsConfigs.latch, PioController::State::Low);
     }
-
-  protected:
     void static MakeSingleStrobePulse() noexcept
     {
         PioController::SetState(pinsConfigs.strobe, PioController::State::High);
@@ -163,14 +151,13 @@ class Shifter {
     }
     void static MakeNStrobePulses(PulseCountT pulses_count) noexcept
     {
-        while (pulses_count > 0) {
+        while (pulses_count--) {
             MakeSingleStrobePulse();
-            pulses_count--;
         }
     }
     void static SetReset() noexcept { PioController::SetState(pinsConfigs.reset, PioController::State::Low); }
     void static ReleaseReset() noexcept { PioController::SetState(pinsConfigs.reset, PioController::State::High); }
-    void static DoReset() noexcept
+    void static ResetState() noexcept
     {
         SetReset();
         ReleaseReset();
