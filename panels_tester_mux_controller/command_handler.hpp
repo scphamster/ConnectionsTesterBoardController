@@ -1,5 +1,7 @@
 #pragma once
 #include "project_configs.h"
+#include "proj_configs.hpp"
+#include "utilities.hpp"
 
 #include <avr/io.h>
 #include <cstdlib>
@@ -14,6 +16,7 @@
 #include "timer.hpp"
 #include "iic.hpp"
 #include "ohm_meter.hpp"
+#include "EEPROMController.hpp"
 
 #define MY_ADDRESS 0x2A
 
@@ -89,10 +92,7 @@ class SetOutputVoltage : public Command {
       , meter{ new_meter }
     { }
 
-    void Execute(ArgsT args) noexcept final
-    {
-        meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args));
-    }
+    void Execute(ArgsT args) noexcept final { meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args)); }
 
   protected:
     struct Arguments {
@@ -136,7 +136,6 @@ class CheckVoltages : public Command {
 
         default:
             if (args > total_mux_pin_count - 1)
-
                 CheckOne(args);
         }
     }
@@ -200,24 +199,6 @@ class CommandHandler {
             }
         }
     }
-    [[noreturn]] void UnitTestCommunications() noexcept
-    {
-        meter.GetAllPinsVoltage();
-
-        while (true) {
-            auto byte = USI_TWI_Receive_Byte();
-            USI_TWI_Transmit_Byte(byte);
-            //            auto value = i2c.Receive<Byte>();
-            //            if (value) {
-            //                i2c.Send(*value);
-            //            }
-
-            //            auto value = i2c.Receive<std::array<Byte, 64>>(400);
-            //            if (value) {
-            //                i2c.Send(*value);
-            //            }
-        }
-    }
 
   protected:
     struct CommandAndArgs {
@@ -262,6 +243,18 @@ class CommandHandler {
             setOutputVoltageCmd.Execute(cmd_and_args.args);
             break;
 
+        case ToUnderlying(ProjCfg::Command::SetOwnAddress):
+            AcknowledgeCommand(cmd_and_args);
+            if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
+                                                                cmd_and_args.args)) {
+                i2c.SetNewAddress(cmd_and_args.args);
+                i2c.Send(ProjCfg::Communications::OK);
+            }
+            else
+                i2c.Send(ProjCfg::Communications::FAIL);
+
+            break;
+
         default: i2c.Send(CommandAndArgs{ unknownCommandResponse, cmd_and_args.args });
         }
     }
@@ -275,11 +268,13 @@ class CommandHandler {
     }
 
   private:
-    auto constexpr static commandsNumber         = 3;
+    auto constexpr static commandsNumber         = 5;
     Byte constexpr static unknownCommandResponse = 0x5a;
     std::array<Byte, commandsNumber> static constexpr commands{ enable_voltage_at_pin_cmd_id,
                                                                 check_internal_counter_cmd_id,
-                                                                check_voltages_cmd_id };
+                                                                check_voltages_cmd_id,
+                                                                ToUnderlying(ProjCfg::Command::SetOwnAddress),
+                                                                ToUnderlying(ProjCfg::Command::TestDataLink) };
 
     OhmMeter meter;
 

@@ -208,6 +208,9 @@
     <Compile Include="debug_tools.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="EEPROMController.hpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="i2c_driver_cpp\i2c_driver.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -239,6 +242,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="project_configs.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="proj_configs.hpp">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="shifter.cpp">

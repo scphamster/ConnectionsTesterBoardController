@@ -4,23 +4,45 @@
 class EEPROMController {
   public:
     using AddressT = uint8_t;
-    using DataT = uint8_t;
+    using DataT    = uint8_t;
 
-    static void Write(AddressT address, DataT data) noexcept {
-        while(EECR & (1 << EEPE));
+    static void Write(AddressT address, DataT data) noexcept
+    {
+        while (EECR & (1 << EEPE))
+            ;
 
         EEAR = address;
         EEDR = data;
 
         EECR |= (1 << EEMPE);
-        EECR |= (1<<EEPE);
+        EECR |= (1 << EEPE);
     }
 
-    static DataT Read(AddressT address) noexcept {
-        while(EECR & (1 << EEPE));
+    static DataT Read(AddressT address) noexcept
+    {
+        while (EECR & (1 << EEPE))
+            ;
 
         EEAR = address;
         EECR |= (1 << EERE);
         return EEDR;
+    }
+
+    static bool DisableInterruptWriteAndCheck(AddressT address, DataT data) noexcept
+    {
+        uint8_t sreg_interrupt_status = SREG & _BV(SREG_I);
+        if (sreg_interrupt_status) {
+            cli();
+        }
+
+        Write(address, data);
+        auto readback = Read(address);
+
+        SREG |= sreg_interrupt_status;
+
+        if (readback == data)
+            return true;
+        else
+            return false;
     }
 };

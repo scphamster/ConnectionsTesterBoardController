@@ -44,7 +44,9 @@ set(CXX_SOURCES
     ${SRC_DIR}/i2c_driver_cpp/i2c_driver.hpp
 
     ${SRC_DIR}/EEPROMController.hpp
+    ${SRC_DIR}/proj_configs.hpp
 
+    ${SRC_DIR}/utilities.hpp
     )
 set(C_SOURCES
     ${SRC_DIR}/debug_tools.h
