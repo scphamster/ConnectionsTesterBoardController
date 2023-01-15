@@ -165,7 +165,7 @@ class CheckVoltages : public Command {
         adc->SetSingleChannel(ADCHandler::SingleChannel::GND);
         i2c.Send(adc->MakeSingleConversion());
     }
-    void CheckAll() noexcept { i2c.Send(meter.GetAllPinsVoltage()); }
+    void CheckAll() noexcept { i2c.Send(meter.GetAllPinsVoltage8B()); }
     void CheckOne(PinT pin) noexcept { i2c.Send(meter.GetPinVoltage(pin)); }
 
   private:

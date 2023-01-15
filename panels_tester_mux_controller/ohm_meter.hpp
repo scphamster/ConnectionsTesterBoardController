@@ -10,10 +10,13 @@
 class OhmMeter {
   public:
     using Switch              = AnalogSwitch;
-    using PinNumT             = uint8_t;
+    using Byte                = uint8_t;
+    using PinNumT             = Byte;
     using PinState            = ShifterC::PinStateT;
     using AdcValueT           = ADCHandler::ResultT;
+    using AdcValue8B          = Byte;
     using AllPinsVoltageValue = std::array<AdcValueT, total_mux_pin_count>;
+    using AllPinsVoltages8B   = std::array<AdcValue8B, total_mux_pin_count>;
     enum class OutputVoltage : uint8_t {
         Undefined = 0,
         _09       = high_voltage_reference_select_pin,
@@ -42,6 +45,7 @@ class OhmMeter {
         EnableInputChannel(pin);
         return adc->MakeSingleConversion();
     }
+
     AllPinsVoltageValue GetAllPinsVoltage() noexcept
     {
         ConfigureADCForMeasurement();
@@ -52,6 +56,22 @@ class OhmMeter {
             EnableInputChannel(pin_num);
             pin_v_value = adc->MakeSingleConversion();
 
+            pin_num++;
+        }
+
+        return array_of_voltages;
+    }
+
+    AllPinsVoltages8B GetAllPinsVoltage8B() noexcept
+    {
+        ConfigureADCForMeasurement();
+        AllPinsVoltages8B array_of_voltages;
+
+        for (Byte pin_num = 0; auto &pin_voltage : array_of_voltages) {
+            EnableInputChannel(pin_num);
+
+            auto voltage = adc->MakeSingleConversion();
+            pin_voltage  = (voltage < 256) ? static_cast<AdcValue8B>(voltage) : static_cast<AdcValue8B>(255);
             pin_num++;
         }
 
