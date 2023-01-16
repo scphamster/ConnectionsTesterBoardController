@@ -5,10 +5,12 @@
 
 #include <avr/io.h>
 #include <cstdlib>
+#include <stdint.h>
 #include <avr/interrupt.h>
 #include <array>
 #include <functional>
 #include <optional>
+#include <cstdint>
 
 #include "shifter.hpp"
 #include "analog_switch.hpp"
@@ -174,6 +176,46 @@ class CheckVoltages : public Command {
     AllPinsVoltageT tableOfVoltages;
 };
 
+class ChangeAddress : public Command {
+  public:
+    ChangeAddress() : Command(static_cast<Byte>(ProjCfg::Command::ChangeAddress)) {}
+
+    void Execute(ArgsT new_address) noexcept final
+    {
+        if (Timer8::GetCounterValue() > executionDeadline) {
+            goto exit;
+        }
+
+        if (confirmationsLeftToExecuteAddressChange == 0) {
+            if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
+                                                                new_address)) {
+                i2c.SetNewAddress(new_address);
+                i2c.Send(ProjCfg::Communications::OK);
+            }
+            else
+                i2c.Send(ProjCfg::Communications::FAIL);
+
+            goto exit;
+        }
+
+        i2c.Send(ProjCfg::Communications::REPEAT_CMD_TO_CONFIRM);
+        confirmationsLeftToExecuteAddressChange--;
+        executionDeadline = Timer8::GetCounterValue() + MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION;
+        return;
+
+exit:
+        confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
+        executionDeadline                       = UINT32_MAX;
+    }
+
+  private:
+    Timer8::TimerValue constexpr static UINT32_MAX                             = 0xffffffff;
+    Timer8::TimerValue constexpr static MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION = 500;
+
+    Byte               confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
+    Timer8::TimerValue executionDeadline                       = UINT32_MAX;
+};
+
 class CommandHandler {
   public:
     using Byte       = uint8_t;
@@ -243,16 +285,9 @@ class CommandHandler {
             setOutputVoltageCmd.Execute(cmd_and_args.args);
             break;
 
-        case ToUnderlying(ProjCfg::Command::SetOwnAddress):
+        case ToUnderlying(ProjCfg::Command::ChangeAddress):
             AcknowledgeCommand(cmd_and_args);
-            if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
-                                                                cmd_and_args.args)) {
-                i2c.SetNewAddress(cmd_and_args.args);
-                i2c.Send(ProjCfg::Communications::OK);
-            }
-            else
-                i2c.Send(ProjCfg::Communications::FAIL);
-
+            changeAddressCmd.Execute(cmd_and_args.args);
             break;
 
         default: i2c.Send(CommandAndArgs{ unknownCommandResponse, cmd_and_args.args });
@@ -273,7 +308,7 @@ class CommandHandler {
     std::array<Byte, commandsNumber> static constexpr commands{ enable_voltage_at_pin_cmd_id,
                                                                 check_internal_counter_cmd_id,
                                                                 check_voltages_cmd_id,
-                                                                ToUnderlying(ProjCfg::Command::SetOwnAddress),
+                                                                ToUnderlying(ProjCfg::Command::ChangeAddress),
                                                                 ToUnderlying(ProjCfg::Command::TestDataLink) };
 
     OhmMeter meter;
@@ -284,6 +319,7 @@ class CommandHandler {
     GetInternalCounterValue getCounterCmd;
     CheckVoltages           checkVoltagesCmd;
     SetOutputVoltage        setOutputVoltageCmd;
+    ChangeAddress           changeAddressCmd;
 
-    uint8_t currentPin = 0;
+    uint8_t                 currentPin = 0;
 };
