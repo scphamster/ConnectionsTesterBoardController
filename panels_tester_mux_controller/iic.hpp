@@ -72,9 +72,6 @@ class IIC {
     template<typename ReturnType>
     std::optional<ReturnType> Receive(uint32_t timeout_ms) noexcept
     {
-//        ReturnType retval;
-//        auto      *buffer = reinterpret_cast<std::array<Byte, sizeof(ReturnType)> *>(&retval);
-
         auto buffer = std::array<Byte, sizeof(ReturnType)>{};
 
         auto endTime = Timer8::GetCounterValue() + timeout_ms / timer8_period_ms;

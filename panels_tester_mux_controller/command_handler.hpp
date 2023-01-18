@@ -21,7 +21,9 @@
 #include "EEPROMController.hpp"
 
 #define MY_ADDRESS 0x2A
-
+#ifndef UINT32_MAX
+#define UINT32_MAX 0XFFFFFFFF
+#endif
 class Command {
   public:
     using Byte  = uint8_t;
@@ -180,16 +182,17 @@ class ChangeAddress : public Command {
   public:
     ChangeAddress() : Command(static_cast<Byte>(ProjCfg::Command::ChangeAddress)) {}
 
-    void Execute(ArgsT new_address) noexcept final
+    void Execute(ArgsT argument) noexcept final
     {
         if (Timer8::GetCounterValue() > executionDeadline) {
+            i2c.Send(ProjCfg::Communications::FAIL);
             goto exit;
         }
 
         if (confirmationsLeftToExecuteAddressChange == 0) {
             if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
-                                                                new_address)) {
-                i2c.SetNewAddress(new_address);
+                                                                argument)) {
+                i2c.SetNewAddress(argument);
                 i2c.Send(ProjCfg::Communications::OK);
             }
             else
@@ -209,8 +212,10 @@ exit:
     }
 
   private:
-    Timer8::TimerValue constexpr static UINT32_MAX                             = 0xffffffff;
+//    Timer8::TimerValue constexpr static UINT32_MAX                             = 0xffffffff;
     Timer8::TimerValue constexpr static MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION = 500;
+
+
 
     Byte               confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
     Timer8::TimerValue executionDeadline                       = UINT32_MAX;

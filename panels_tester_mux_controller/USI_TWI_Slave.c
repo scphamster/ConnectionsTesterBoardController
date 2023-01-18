@@ -44,9 +44,9 @@ static unsigned char          TWI_slaveAddress;
 static volatile unsigned char USI_TWI_Overflow_State;
 
 /*=========================> Locals <=======================================*/
-static volatile uint8_t         *TWI_RxBuf = TWI_Buffer;
-static volatile uint8_t TWI_RxHead;
-static volatile uint8_t TWI_RxTail;
+static volatile uint8_t *TWI_RxBuf = TWI_Buffer;
+static volatile uint8_t  TWI_RxHead;
+static volatile uint8_t  TWI_RxTail;
 
 static volatile uint8_t *TWI_TxBuf = TWI_Buffer + TWI_RX_BUFFER_SIZE;
 static volatile uint8_t  TWI_TxHead;
@@ -169,32 +169,23 @@ USI_TWI_Slave_Is_Active()
 ----------------------------------------------------------*/
 ISR(USI_STR_vect)
 {
-    unsigned char tmpPin;      // Temporary variable for pin state
-    unsigned char tmpRxHead;   // Temporary variable to store volatile
-    // call slave receive callback on repeated start
-
-    if (USI_TWI_On_Slave_Receive) {
-        tmpRxHead = TWI_RxHead;
-        if (TWI_RxTail != tmpRxHead) {   // data in receive buffer
-            USI_TWI_On_Slave_Receive(USI_TWI_Data_In_Receive_Buffer());
-            TWI_RxTail = tmpRxHead;   // reset rx buffer
-        }
-    }
+    unsigned char sclPinState;   // Temporary variable for pin state
+    unsigned char tmpRxHead;     // Temporary variable to store volatile
 
     USI_TWI_Overflow_State = USI_SLAVE_CHECK_ADDRESS;
     USI_DDR &= ~(1 << USI_SDA_BIT);   // Set SDA as input
-    while ((tmpPin = (USI_PIN & (1 << USI_SCL_BIT))) && ((USI_PIN & (1 << USI_SDA_BIT)) == 0))
+    while ((sclPinState = (USI_PIN & (1 << USI_SCL_BIT))) && ((USI_PIN & (1 << USI_SDA_BIT)) == 0))
         ;
     // Wait for SCL to go low to ensure the "Start Condition" has completed.
     // If a Stop condition arises then leave the interrupt to prevent waiting forever.
-    if (tmpPin) {                                 // Stop Condition (waiting for next Start Condition)
+    if (sclPinState) {                            // Stop Condition (waiting for next Start Condition)
         USICR = (1 << USISIE) | (0 << USIOIE) |   // Enable Start Condition Interrupt. Disable Overflow Interrupt.
                 (1 << USIWM1) | (0 << USIWM0) |   // Set USI in Two-wire mode. No USI Counter overflow prior
                                                   // to first Start Condition (potential failure)
                 (1 << USICS1) | (0 << USICS0) |   // Shift Register Clock Source = External, positive edge
                 (0 << USICLK) | (0 << USITC);
     }
-    else {   // really Start Condition (Enable Overflow Interrupt)
+    else {   // healthy Start Condition (Enable Overflow Interrupt)
         USICR = (1 << USISIE) | (1 << USIOIE) |
                 // Enable Overflow and Start Condition Interrupt. (Keep StartCondInt to detect RESTART)
                 (1 << USIWM1) | (1 << USIWM0) |   // Set USI in Two-wire mode.
@@ -220,18 +211,11 @@ ISR(USI_OVF_vect)
     // Check address and send ACK (and next USI_SLAVE_SEND_DATA) if OK, else reset USI.
     case USI_SLAVE_CHECK_ADDRESS:
         if ((USIDR == 0) || ((USIDR >> 1) == TWI_slaveAddress)) {
-            if (USIDR & 0x01) {
-                if (USI_TWI_On_Slave_Transmit) {
-                    // reset tx buffer and call callback
-                    tmpTxTail  = TWI_TxHead;
-                    TWI_TxTail = tmpTxTail;
-                    USI_TWI_On_Slave_Transmit();
-                }
+            if (USIDR & 0x01)
                 USI_TWI_Overflow_State = USI_SLAVE_SEND_DATA;
-            }
-            else {
+            else
                 USI_TWI_Overflow_State = USI_SLAVE_REQUEST_DATA;
-            }
+
             SET_USI_TO_SEND_ACK();
         }
         else {
@@ -251,7 +235,6 @@ ISR(USI_OVF_vect)
     // Copy data from buffer to USIDR and set USI to shift byte. Next USI_SLAVE_REQUEST_REPLY_FROM_SEND_DATA
     /* Falls through. */
     case USI_SLAVE_SEND_DATA:
-
         // Get data from Buffer
         tmpTxTail = TWI_TxTail;   // Not necessary, but prevents warnings
         if (TWI_TxHead != tmpTxTail) {
