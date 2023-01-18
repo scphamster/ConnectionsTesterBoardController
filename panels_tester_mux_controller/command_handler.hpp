@@ -180,42 +180,95 @@ class CheckVoltages : public Command {
 
 class ChangeAddress : public Command {
   public:
-    ChangeAddress() : Command(static_cast<Byte>(ProjCfg::Command::ChangeAddress)) {}
+    ChangeAddress()
+      : Command(static_cast<Byte>(ProjCfg::Command::ChangeAddress))
+    { }
 
     void Execute(ArgsT argument) noexcept final
     {
         if (Timer8::GetCounterValue() > executionDeadline) {
             i2c.Send(ProjCfg::Communications::FAIL);
-            goto exit;
+            OnFailedStage();
+            return;
         }
 
-        if (confirmationsLeftToExecuteAddressChange == 0) {
-            if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
-                                                                argument)) {
-                i2c.SetNewAddress(argument);
-                i2c.Send(ProjCfg::Communications::OK);
+        switch (confirmation_process_stage) {
+        case 0:
+            if (argument > 0 and argument < 128) {
+                new_address_to_be_set = argument;
+                OnSuccessfulStage();
             }
             else
-                i2c.Send(ProjCfg::Communications::FAIL);
+                OnFailedStage();
+            break;
 
-            goto exit;
+        case 1:
+            if (argument == new_address_to_be_set)
+                OnSuccessfulStage();
+            else
+                OnFailedStage();
+            break;
+
+        case 2:
+            if (argument == passwordOne)
+                OnSuccessfulStage();
+            else
+                OnFailedStage();
+            break;
+
+        case 3:
+            if (argument == passwordTwo)
+                OnSuccessfulStage();
+            else
+                OnFailedStage();
+            break;
+
+        case 4:
+            if (argument == passwordOne)
+                OnSuccessfulStage();
+            else
+                OnFailedStage();
+            break;
+        case 5:
+            if (argument == new_address_to_be_set) {
+                if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
+                                                                    argument)) {
+                    i2c.SetNewAddress(new_address_to_be_set);
+                    i2c.Send(ProjCfg::Communications::OK);
+                }
+                else
+                    i2c.Send(ProjCfg::Communications::FAIL);
+            }
+            break;
+
+        default: break;
         }
-
-        i2c.Send(ProjCfg::Communications::REPEAT_CMD_TO_CONFIRM);
-        confirmationsLeftToExecuteAddressChange--;
-        executionDeadline = Timer8::GetCounterValue() + MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION;
-        return;
-
-exit:
-        confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
-        executionDeadline                       = UINT32_MAX;
     }
 
+  protected:
+    void Reset(){
+        executionDeadline          = UINT32_MAX;
+        confirmation_process_stage = 0;
+        new_address_to_be_set      = 0;
+    }
+    void OnSuccessfulStage()
+    {
+        executionDeadline = Timer8::GetCounterValue() + MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION;
+        confirmation_process_stage++;
+        i2c.Send(ProjCfg::Communications::REPEAT_CMD_TO_CONFIRM);
+    }
+    void OnFailedStage()
+    {
+        Reset();
+        i2c.Send(ProjCfg::Communications::FAIL);
+    }
   private:
-//    Timer8::TimerValue constexpr static UINT32_MAX                             = 0xffffffff;
     Timer8::TimerValue constexpr static MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION = 500;
+    constexpr static Byte passwordOne                                          = 153;
+    constexpr static Byte passwordTwo                                          = 102;
 
-
+    Byte confirmation_process_stage = 0;
+    Byte new_address_to_be_set      = 0;
 
     Byte               confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
     Timer8::TimerValue executionDeadline                       = UINT32_MAX;
@@ -326,5 +379,5 @@ class CommandHandler {
     SetOutputVoltage        setOutputVoltageCmd;
     ChangeAddress           changeAddressCmd;
 
-    uint8_t                 currentPin = 0;
+    uint8_t currentPin = 0;
 };
