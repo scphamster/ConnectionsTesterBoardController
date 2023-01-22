@@ -33,6 +33,7 @@ extern "C" {
 
 //#include <Arduino.h>
 #ifndef TWDR
+void Flush_TWI_Buffers(void);
 void          USI_TWI_Slave_Initialise(unsigned char);
 void          USI_TWI_Slave_Disable();
 void          USI_TWI_Transmit_Byte(unsigned char);

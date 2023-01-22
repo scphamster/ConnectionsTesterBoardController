@@ -29,7 +29,7 @@ class EEPROMController {
         return EEDR;
     }
 
-    static bool DisableInterruptWriteAndCheck(AddressT address, DataT data) noexcept
+    static bool SafeWriteWithCheck(AddressT address, DataT data) noexcept
     {
         uint8_t sreg_interrupt_status = SREG & _BV(SREG_I);
         if (sreg_interrupt_status) {
@@ -58,9 +58,9 @@ class EEPROMController {
 
         bool readout_is_ok = true;
         Byte byte_counter  = 0;
-        for (auto const &byte : *buffer) {
+        for (auto const byte : *buffer) {
             Write(address + byte_counter, byte);
-            auto readback = Read(address);
+            auto readback = Read(address + byte_counter);
 
             if (readback != byte)
                 readout_is_ok = false;
@@ -70,5 +70,25 @@ class EEPROMController {
 
         SREG |= sreg_interrupt_status;
         return readout_is_ok;
+    }
+
+    template<typename DataType>
+    static DataType SuperRead(AddressT address) noexcept {
+        auto buffer = std::array<Byte, sizeof(DataType)>();
+
+        uint8_t sreg_interrupt_status = SREG & _BV(SREG_I);
+        if (sreg_interrupt_status) {
+            cli();
+        }
+
+        Byte byte_counter  = 0;
+        for (auto &byte : buffer) {
+            byte = Read(address + byte_counter);
+            byte_counter++;
+        }
+
+        SREG |= sreg_interrupt_status;
+
+        return *reinterpret_cast<DataType*>(buffer.data());
     }
 };

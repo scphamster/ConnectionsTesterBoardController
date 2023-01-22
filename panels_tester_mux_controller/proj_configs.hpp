@@ -9,7 +9,7 @@ using Byte           = uint8_t;
 enum Memory {
     EEPROMAddressI2CBoardAddress = 0,
     ElectricalCharacteristicsAddress = 1,
-    ElectricalCharacteristicsSize = 6
+    ElectricalCharacteristicsSize = 12 //2 bytes each: in / out resistance * 2 + outVoltage(hi and low) = (2 * 2 + 2) * 2
 
 };
 enum I2C {
@@ -24,6 +24,8 @@ enum class Command : CommandSubtype {
     ChangeAddress        = 0xc5,
     TestDataLink         = 0xc6,
     GetFirmwareVersion   = 0xc7,
+    SetInternalParameters = 0xc8,
+    GetInternalParameters = 0xc9
 };
 
 enum StandardResponse : CommandSubtype {
@@ -40,5 +42,5 @@ enum Delay : Byte {
 enum BoardSpecifics : Byte {
     NumberOfPins = 32,
 };
-constexpr Byte FIRMWARE_VERSION = 18;
+constexpr Byte FIRMWARE_VERSION = 19;
 }

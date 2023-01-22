@@ -45,7 +45,7 @@ class EnableOutputForPin : public Command {
         if (args == Arguments::SpecialPinConfigurations::DisableAll) {
             meter.DisableAllOutputs();
         }
-        else if (args < ProjCfg::BoardSpecifics::NumberOfPins){
+        else if (args < ProjCfg::BoardSpecifics::NumberOfPins) {
             meter.EnableOutputForPin(args);
         }
         else {
@@ -197,8 +197,7 @@ class ChangeAddress : public Command {
             break;
         case 5:
             if (argument == new_address_to_be_set) {
-                if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
-                                                                    argument)) {
+                if (EEPROMController::SafeWriteWithCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress, argument)) {
                     i2c.SetNewAddress(new_address_to_be_set);
                     i2c.Send(ProjCfg::StandardResponse::OK);
                 }
@@ -241,15 +240,47 @@ class ChangeAddress : public Command {
     Timer8::TimerValue executionDeadline = UINT32_MAX;
 };
 
-class SetInternalParameters: public Command{
+class SetInternalParameters : public Command {
   public:
-    void Execute(ArgsT args) noexcept final {
+    void Execute(ArgsT args) noexcept final
+    {
+        if (args_counter < ProjCfg::Memory::ElectricalCharacteristicsSize) {
+            write_buffer[args_counter] = args;
+            args_counter++;
+            i2c.Send(ProjCfg::StandardResponse::REPEAT_CMD_TO_CONFIRM);
+        }
+        else if (args_counter == ProjCfg::ElectricalCharacteristicsSize) {
+            auto result = EEPROMController::SuperWrite(ProjCfg::ElectricalCharacteristicsAddress, write_buffer);
 
+            i2c.FlushBuffers();
+
+            if (result)
+                i2c.Send(ProjCfg::StandardResponse::OK);
+            else
+                i2c.Send(ProjCfg::StandardResponse::FAIL);
+
+            args_counter = 0;
+        }
+        else {
+            i2c.Send(ProjCfg::StandardResponse::FAIL);
+        }
     }
 
   private:
-    Byte args_counter = 0;
+    Byte                                                             args_counter = 0;
+    std::array<Byte, ProjCfg::Memory::ElectricalCharacteristicsSize> write_buffer;
+};
 
+class GetInternalParameters : public Command {
+  public:
+    void Execute(ArgsT args) noexcept final
+    {
+        auto result = EEPROMController::SuperRead<std::array<Byte, ProjCfg::Memory::ElectricalCharacteristicsSize>>(
+          ProjCfg::Memory::ElectricalCharacteristicsAddress);
+
+        //        i2c.FlushBuffers();
+        i2c.Send(result);
+    }
 };
 
 class CommandHandler {
@@ -319,6 +350,16 @@ class CommandHandler {
             i2c.Send(ProjCfg::FIRMWARE_VERSION);
             break;
 
+        case ToUnderlying(ProjCfg::Command::SetInternalParameters):
+            AcknowledgeCommand(cmd_and_args);
+            setParametersCmd.Execute(cmd_and_args.args);
+            break;
+
+        case ToUnderlying(ProjCfg::Command::GetInternalParameters):
+            AcknowledgeCommand(cmd_and_args);
+            getParametersCmd.Execute(cmd_and_args.args);
+            break;
+
         default: i2c.Send(CommandAndArgs{ ProjCfg::UnknownCommand, cmd_and_args.args });
         }
     }
@@ -331,4 +372,6 @@ class CommandHandler {
     CheckVoltages           checkVoltagesCmd;
     SetOutputVoltageLevel   setOutputVoltageCmd;
     ChangeAddress           changeAddressCmd;
+    SetInternalParameters   setParametersCmd;
+    GetInternalParameters   getParametersCmd;
 };

@@ -53,7 +53,9 @@ class IIC {
             return retval;
         }
     }
-
+    void FlushBuffers() noexcept {
+        Flush_TWI_Buffers();
+    }
     template<typename ReturnType>
     std::optional<ReturnType> Receive() noexcept
     {
