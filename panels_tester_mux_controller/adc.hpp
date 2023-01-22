@@ -43,45 +43,48 @@ class ADCHandler {
         _128
     };
 
-    void static Create() noexcept;
-    ADCHandler static *Get() noexcept { return _this; }
-    void               Enable() noexcept
+    static void Init() noexcept
+    {
+        Enable();
+
+        SetPrescaler(Prescaller::_64);
+        SetReference(Reference::VCC);
+        SetSingleChannel(SingleChannel::_1v1Ref);
+
+        DisableDigitalFunction(0);
+    }
+    static void Enable() noexcept
     {
         PRR &= ~_BV(PRADC);
         ADCSRA |= _BV(ADEN);
     }
-    void Disable() noexcept { ADCSRA &= ~_BV(ADEN); }
-    void EnableInterrupt() noexcept
-    {
-        ADCSRA |= _BV(ADIF);
-        ADCSRA |= _BV(ADIE);
-    }
-    void DisableInterrupt() noexcept { ADCSRA &= ~_BV(ADIE); }
-    void SetPrescaller(Prescaller ps) noexcept
+//    static void Disable() noexcept { ADCSRA &= ~_BV(ADEN); }
+//    static void EnableInterrupt() noexcept
+//    {
+//        ADCSRA |= _BV(ADIF);
+//        ADCSRA |= _BV(ADIE);
+//    }
+//    static void DisableInterrupt() noexcept { ADCSRA &= ~_BV(ADIE); }
+    static void SetPrescaler(Prescaller ps) noexcept
     {
         auto status_no_prescaller = ADCSRA bitand static_cast<RegT>(ADCSRA_NoPrescaller);
         ADCSRA                    = status_no_prescaller | static_cast<RegT>(ps);
     }
-    void SetSingleChannel(SingleChannel channel) noexcept
+    static void SetSingleChannel(SingleChannel channel) noexcept
     {
         auto mux_reference = ADMUX bitand MUXOnlyReference;
         ADMUX              = static_cast<RegT>(channel) | mux_reference;
     }
-    void SetReference(Reference new_ref) noexcept
+    static void SetReference(Reference new_ref) noexcept
     {
         auto mux_chanels = ADMUX bitand MUXOnlyChanels;
 
         ADMUX = static_cast<RegT>(new_ref) | mux_chanels;
     }
-    void ClearInterrupt() const noexcept { ADCSRA |= _BV(ADIF); }
-    void StartConversion() noexcept { ADCSRA |= _BV(ADSC); }
-    void SetLastValue(ResultT value) noexcept
-    {
-        lastValue      = value;
-        newDataArrived = true;
-    }
+//    static void ClearInterrupt() noexcept { ADCSRA |= _BV(ADIF); }
+    static void StartConversion() noexcept { ADCSRA |= _BV(ADSC); }
 
-    ResultT MakeSingleConversion() noexcept
+    static ResultT MakeSingleConversion() noexcept
     {
         if (not ConversionIsInProgress())
             StartConversion();
@@ -93,24 +96,15 @@ class ADCHandler {
 
         return ReadResult();
     }
-    ResultT ReadResult() const noexcept
+    static ResultT ReadResult() noexcept
     {
         ResultT result = ADCL;
         return result | (ADCH << 8);
     }
-    ResultT GetLastValue() noexcept
-    {
-        newDataArrived = false;
-        //        new_data_arrived = 0;
-        return lastValue;
-        //        return last_adc_value;
-    }
-    bool ConversionIsInProgress() const noexcept { return (ADCSRA bitand _BV(ADSC)); }
-    bool InterruptHappened() const noexcept { return (ADCSRA bitand _BV(ADIF)); }
-    bool NewDataArrived() const noexcept { return newDataArrived; }
+    static bool ConversionIsInProgress() noexcept { return (ADCSRA bitand _BV(ADSC)); }
 
   protected:
-    void DisableDigitalFunction(int pin) noexcept
+    static void DisableDigitalFunction(int pin) noexcept
     {
         if (pin > 7)
             while (true)
@@ -120,27 +114,4 @@ class ADCHandler {
     }
 
   private:
-    ADCHandler()
-    {
-        if (initialized)
-            while (true)
-                ;
-
-        //todo: make configurable
-        Enable();
-//        EnableInterrupt();
-        SetPrescaller(Prescaller::_64);
-        SetReference(Reference::VCC);
-        SetSingleChannel(SingleChannel::_1v1Ref);
-
-        DisableDigitalFunction(0);
-
-        initialized = true;
-    }
-
-    ADCHandler  static *_this;
-
-    bool static initialized;
-    bool    newDataArrived = false;
-    ResultT lastValue{ 0 };
 };

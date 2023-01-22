@@ -4,7 +4,6 @@
 #include <array>
 #include <type_traits>
 #include <algorithm>
-#include "my_heap.hpp"
 
 auto constexpr shifter_size = 24;
 

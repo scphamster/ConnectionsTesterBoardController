@@ -14,7 +14,6 @@ set(SRC_DIR $ENV{SOURCES_DIRECTORY})
 set(CXX_SOURCES
     ${SRC_DIR}/main.cpp
 
-    ${SRC_DIR}/adc.cpp
     ${SRC_DIR}/adc.hpp
 
     ${SRC_DIR}/pio_controller.cpp
@@ -24,7 +23,6 @@ set(CXX_SOURCES
     ${SRC_DIR}/command_handler.cpp
 
     ${SRC_DIR}/shifter.hpp
-    ${SRC_DIR}/shifter.cpp
 
     ${SRC_DIR}/analog_switch.hpp
 
@@ -32,10 +30,6 @@ set(CXX_SOURCES
     ${SRC_DIR}/timer.cpp
 
     ${SRC_DIR}/iic.hpp
-    ${SRC_DIR}/iic.cpp
-
-    ${SRC_DIR}/my_heap.hpp
-    ${SRC_DIR}/my_heap.cpp
 
     ${SRC_DIR}/ohm_meter.hpp
     ${SRC_DIR}/ohm_meter.cpp

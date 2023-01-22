@@ -187,9 +187,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="adc.cpp">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="adc.hpp">
       <SubType>compile</SubType>
     </Compile>
@@ -217,16 +214,7 @@
     <Compile Include="i2c_driver_cpp\i2c_driver.hpp">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="iic.cpp">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="main.cpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="my_heap.cpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="my_heap.hpp">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="ohm_meter.cpp">
@@ -245,9 +233,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="proj_configs.hpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="shifter.cpp">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="shifter.hpp">

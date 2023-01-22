@@ -5,7 +5,7 @@
 
 #include <avr/io.h>
 #include <cstdlib>
-#include <stdint.h>
+#include <cstdint>
 #include <avr/interrupt.h>
 #include <array>
 #include <functional>
@@ -20,7 +20,6 @@
 #include "ohm_meter.hpp"
 #include "EEPROMController.hpp"
 
-#define MY_ADDRESS 0x2A
 #ifndef UINT32_MAX
 #define UINT32_MAX 0XFFFFFFFF
 #endif
@@ -29,29 +28,7 @@ class Command {
     using Byte  = uint8_t;
     using ArgsT = Byte;
 
-    Command(Byte cmd)
-      : command{ cmd }
-    { }
-
-    Byte         GetCommand() const noexcept { return command; }
-    Byte         ReverseBits(Byte data) { return ~data; }
     virtual void Execute(Byte args) noexcept = 0;
-
-    template<typename ArgT>
-    void AcknowledgeArguments(ArgT args) noexcept
-    {
-        i2c.Send(args);
-    }
-
-    template<typename ReturnType>
-    ReturnType WaitForCommandArgs() noexcept
-    {
-        return i2c.ReceiveBlocking<ReturnType>();
-    }
-
-  protected:
-  private:
-    Byte command;
 };
 
 class EnableOutputForPin : public Command {
@@ -60,17 +37,19 @@ class EnableOutputForPin : public Command {
     using PinVoltage = Multimeter::OutputVoltage;
 
     EnableOutputForPin(Multimeter &new_meter)
-      : Command{ enable_voltage_at_pin_cmd_id }
-      , meter{ new_meter }
+      : meter{ new_meter }
     { }
 
-    void Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept final
     {
         if (args == Arguments::SpecialPinConfigurations::DisableAll) {
             meter.DisableAllOutputs();
         }
-        else {
+        else if (args < ProjCfg::BoardSpecifics::NumberOfPins){
             meter.EnableOutputForPin(args);
+        }
+        else {
+            meter.EnableInputChannel(args - ProjCfg::BoardSpecifics::NumberOfPins);
         }
     }
 
@@ -79,21 +58,19 @@ class EnableOutputForPin : public Command {
         enum SpecialPinConfigurations : Byte {
             DisableAll = 254
         };
-        Byte pinNumber;
     };
 
   private:
     Multimeter &meter;
 };
 
-class SetOutputVoltage : public Command {
+class SetOutputVoltageLevel : public Command {
   public:
     using Multimeter = OhmMeter;
     using PinVoltage = Multimeter::OutputVoltage;
 
-    SetOutputVoltage(Multimeter &new_meter)
-      : Command{ set_output_voltage_cmd_id }
-      , meter{ new_meter }
+    SetOutputVoltageLevel(Multimeter &new_meter)
+      : meter{ new_meter }
     { }
 
     void Execute(ArgsT args) noexcept final { meter.SelectOutputVoltage(static_cast<Multimeter::OutputVoltage>(args)); }
@@ -109,11 +86,7 @@ class SetOutputVoltage : public Command {
 
 class GetInternalCounterValue : public Command {
   public:
-    GetInternalCounterValue()
-      : Command{ check_internal_counter_cmd_id }
-    { }
-
-    void Execute(ArgsT dummy_args) noexcept override { i2c.Send(Timer8::GetCounterValue()); }
+    void Execute(ArgsT dummy_args) noexcept final { i2c.Send(Timer8::GetCounterValue()); }
 
   protected:
   private:
@@ -126,12 +99,10 @@ class CheckVoltages : public Command {
     using AllPinsVoltageT = Multimeter::AllPinsVoltageValue;
 
     CheckVoltages(Multimeter &new_meter)
-      : Command{ check_voltages_cmd_id }
-      , adc{ ADCHandler::Get() }
-      , meter{ new_meter }
+      : meter{ new_meter }
     { }
 
-    void Execute(ArgsT args) noexcept override final
+    void Execute(ArgsT args) noexcept final
     {
         switch (static_cast<SpecialMeasurements>(args)) {
         case SpecialMeasurements::MeasureVCC: CheckVCC(); break;
@@ -139,7 +110,7 @@ class CheckVoltages : public Command {
         case SpecialMeasurements::MeasureAll: CheckAll(); break;
 
         default:
-            if (args > total_mux_pin_count - 1)
+            if (args > ProjCfg::BoardSpecifics::NumberOfPins - 1)
                 CheckOne(args);
         }
     }
@@ -159,35 +130,30 @@ class CheckVoltages : public Command {
 
     void CheckVCC() noexcept
     {
-        adc->SetReference(ADCHandler::Reference::VCC);
-        adc->SetSingleChannel(ADCHandler::SingleChannel::_1v1Ref);
-        i2c.Send(adc->MakeSingleConversion());
+        ADCHandler::SetReference(ADCHandler::Reference::VCC);
+        ADCHandler::SetSingleChannel(ADCHandler::SingleChannel::_1v1Ref);
+        i2c.Send(ADCHandler::MakeSingleConversion());
     }
     void CheckGND() noexcept
     {
-        adc->SetReference(ADCHandler::Reference::VCC);
-        adc->SetSingleChannel(ADCHandler::SingleChannel::GND);
-        i2c.Send(adc->MakeSingleConversion());
+        ADCHandler::SetReference(ADCHandler::Reference::VCC);
+        ADCHandler::SetSingleChannel(ADCHandler::SingleChannel::GND);
+        i2c.Send(ADCHandler::MakeSingleConversion());
     }
     void CheckAll() noexcept { i2c.Send(meter.GetAllPinsVoltage8B()); }
     void CheckOne(PinT pin) noexcept { i2c.Send(meter.GetPinVoltage(pin)); }
 
   private:
-    ADCHandler     *adc;
     Multimeter     &meter;
     AllPinsVoltageT tableOfVoltages;
 };
 
 class ChangeAddress : public Command {
   public:
-    ChangeAddress()
-      : Command(static_cast<Byte>(ProjCfg::Command::ChangeAddress))
-    { }
-
     void Execute(ArgsT argument) noexcept final
     {
         if (Timer8::GetCounterValue() > executionDeadline) {
-            i2c.Send(ProjCfg::Communications::FAIL);
+            i2c.Send(ProjCfg::StandardResponse::FAIL);
             OnFailedStage();
             return;
         }
@@ -234,10 +200,10 @@ class ChangeAddress : public Command {
                 if (EEPROMController::DisableInterruptWriteAndCheck(ProjCfg::Memory::EEPROMAddressI2CBoardAddress,
                                                                     argument)) {
                     i2c.SetNewAddress(new_address_to_be_set);
-                    i2c.Send(ProjCfg::Communications::OK);
+                    i2c.Send(ProjCfg::StandardResponse::OK);
                 }
                 else
-                    i2c.Send(ProjCfg::Communications::FAIL);
+                    i2c.Send(ProjCfg::StandardResponse::FAIL);
             }
             break;
 
@@ -246,7 +212,8 @@ class ChangeAddress : public Command {
     }
 
   protected:
-    void Reset(){
+    void Reset()
+    {
         executionDeadline          = UINT32_MAX;
         confirmation_process_stage = 0;
         new_address_to_be_set      = 0;
@@ -255,13 +222,14 @@ class ChangeAddress : public Command {
     {
         executionDeadline = Timer8::GetCounterValue() + MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION;
         confirmation_process_stage++;
-        i2c.Send(ProjCfg::Communications::REPEAT_CMD_TO_CONFIRM);
+        i2c.Send(ProjCfg::StandardResponse::REPEAT_CMD_TO_CONFIRM);
     }
     void OnFailedStage()
     {
         Reset();
-        i2c.Send(ProjCfg::Communications::FAIL);
+        i2c.Send(ProjCfg::StandardResponse::FAIL);
     }
+
   private:
     Timer8::TimerValue constexpr static MAX_TIME_TO_WAIT_FOR_NEXT_CONFIRMATION = 500;
     constexpr static Byte passwordOne                                          = 153;
@@ -270,8 +238,18 @@ class ChangeAddress : public Command {
     Byte confirmation_process_stage = 0;
     Byte new_address_to_be_set      = 0;
 
-    Byte               confirmationsLeftToExecuteAddressChange = ProjCfg::NUMBER_OF_CONFIRMATIONS_TO_CHANGE_ADDRESSS;
-    Timer8::TimerValue executionDeadline                       = UINT32_MAX;
+    Timer8::TimerValue executionDeadline = UINT32_MAX;
+};
+
+class SetInternalParameters: public Command{
+  public:
+    void Execute(ArgsT args) noexcept final {
+
+    }
+
+  private:
+    Byte args_counter = 0;
+
 };
 
 class CommandHandler {
@@ -281,19 +259,16 @@ class CommandHandler {
     using ArgsT      = Byte;
     using Multimeter = OhmMeter;
 
-    // todo: make prettier
     CommandHandler()
       : meter{}
       , setVoltageCmd{ meter }
       , checkVoltagesCmd{ meter }
       , setOutputVoltageCmd{ meter }
-    {
-        Init();
-    }
+    { }
     [[noreturn]] void MainLoop() noexcept
     {
         while (true) {
-            auto new_command = i2c.Receive<CommandAndArgs>(100);
+            auto new_command = i2c.Receive<CommandAndArgs>(ProjCfg::Delay::TimeoutForSingleCommandReception);
             if (new_command) {
                 HandleCommand(*new_command);
             }
@@ -306,13 +281,6 @@ class CommandHandler {
         ArgsT    args;
     };
 
-    enum class CurrentState {
-        WaitingForNewCommand,
-        CommandReceived_WaitingForArgument,
-        CommandReceived_Executing,
-        ExecutionCompleted_WaitingForCommand
-    };
-    void Init() noexcept { }
     void AcknowledgeCommand(CommandAndArgs cmd_and_args) noexcept
     {
         i2c.Send(CommandAndArgs{ ReverseBits(cmd_and_args.cmd), cmd_and_args.args });
@@ -320,25 +288,23 @@ class CommandHandler {
     Byte static ReverseBits(Byte data) noexcept { return ~data; }
     void HandleCommand(CommandAndArgs cmd_and_args) noexcept
     {
-        CommandT answer{ unknownCommandResponse };
-
         switch (cmd_and_args.cmd) {
-        case enable_voltage_at_pin_cmd_id:
+        case ToUnderlying(ProjCfg::Command::EnableVoltageAtPin):
             AcknowledgeCommand(cmd_and_args);
             setVoltageCmd.Execute(cmd_and_args.args);
             break;
 
-        case check_internal_counter_cmd_id:
+        case ToUnderlying(ProjCfg::Command::CheckInternalCounter):
             AcknowledgeCommand(cmd_and_args);
             getCounterCmd.Execute(cmd_and_args.args);
             break;
 
-        case check_voltages_cmd_id:
+        case ToUnderlying(ProjCfg::Command::CheckVoltages):
             AcknowledgeCommand(cmd_and_args);
             checkVoltagesCmd.Execute(cmd_and_args.args);
             break;
 
-        case set_output_voltage_cmd_id:
+        case ToUnderlying(ProjCfg::Command::SetVoltageLevel):
             AcknowledgeCommand(cmd_and_args);
             setOutputVoltageCmd.Execute(cmd_and_args.args);
             break;
@@ -348,36 +314,21 @@ class CommandHandler {
             changeAddressCmd.Execute(cmd_and_args.args);
             break;
 
-        default: i2c.Send(CommandAndArgs{ unknownCommandResponse, cmd_and_args.args });
-        }
-    }
-    void BackgroundMeasurements() noexcept
-    {
-        //        checkVoltagesCmd.GetVoltagesTable()[currentPin] = meter.GetPinVoltage(currentPin);
-        currentPin++;
+        case ToUnderlying(ProjCfg::Command::GetFirmwareVersion):
+            AcknowledgeCommand(cmd_and_args);
+            i2c.Send(ProjCfg::FIRMWARE_VERSION);
+            break;
 
-        if (currentPin >= total_mux_pin_count)
-            currentPin = 0;
+        default: i2c.Send(CommandAndArgs{ ProjCfg::UnknownCommand, cmd_and_args.args });
+        }
     }
 
   private:
-    auto constexpr static commandsNumber         = 5;
-    Byte constexpr static unknownCommandResponse = 0x5a;
-    std::array<Byte, commandsNumber> static constexpr commands{ enable_voltage_at_pin_cmd_id,
-                                                                check_internal_counter_cmd_id,
-                                                                check_voltages_cmd_id,
-                                                                ToUnderlying(ProjCfg::Command::ChangeAddress),
-                                                                ToUnderlying(ProjCfg::Command::TestDataLink) };
-
     OhmMeter meter;
-
-    CurrentState currentState{ CurrentState::WaitingForNewCommand };
 
     EnableOutputForPin      setVoltageCmd;
     GetInternalCounterValue getCounterCmd;
     CheckVoltages           checkVoltagesCmd;
-    SetOutputVoltage        setOutputVoltageCmd;
+    SetOutputVoltageLevel   setOutputVoltageCmd;
     ChangeAddress           changeAddressCmd;
-
-    uint8_t currentPin = 0;
 };

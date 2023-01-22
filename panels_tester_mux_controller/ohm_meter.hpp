@@ -6,6 +6,7 @@
 #include "shifter.hpp"
 #include "analog_switch.hpp"
 #include "adc.hpp"
+#include "proj_configs.hpp"
 
 class OhmMeter {
   public:
@@ -15,8 +16,8 @@ class OhmMeter {
     using PinState            = ShifterC::PinStateT;
     using AdcValueT           = ADCHandler::ResultT;
     using AdcValue8B          = Byte;
-    using AllPinsVoltageValue = std::array<AdcValueT, total_mux_pin_count>;
-    using AllPinsVoltages8B   = std::array<AdcValue8B, total_mux_pin_count>;
+    using AllPinsVoltageValue = std::array<AdcValueT, ProjCfg::BoardSpecifics::NumberOfPins>;
+    using AllPinsVoltages8B   = std::array<AdcValue8B, ProjCfg::BoardSpecifics::NumberOfPins>;
     enum class OutputVoltage : uint8_t {
         Undefined = 0,
         _09       = high_voltage_reference_select_pin,
@@ -24,7 +25,6 @@ class OhmMeter {
     };
 
     OhmMeter() noexcept
-      : adc{ ADCHandler::Get() }
     {
         SelectOutputVoltage(OutputVoltage::_07);
     }
@@ -43,7 +43,7 @@ class OhmMeter {
     {
         ConfigureADCForMeasurement();
         EnableInputChannel(pin);
-        return adc->MakeSingleConversion();
+        return ADCHandler::MakeSingleConversion();
     }
 
     AllPinsVoltageValue GetAllPinsVoltage() noexcept
@@ -54,7 +54,7 @@ class OhmMeter {
 
         for (uint8_t pin_num = 0; auto &pin_v_value : array_of_voltages) {
             EnableInputChannel(pin_num);
-            pin_v_value = adc->MakeSingleConversion();
+            pin_v_value = ADCHandler::MakeSingleConversion();
 
             pin_num++;
         }
@@ -70,18 +70,25 @@ class OhmMeter {
         for (Byte pin_num = 0; auto &pin_voltage : array_of_voltages) {
             EnableInputChannel(pin_num);
 
-            auto voltage = adc->MakeSingleConversion();
+            auto voltage = ADCHandler::MakeSingleConversion();
             pin_voltage  = (voltage < 256) ? static_cast<AdcValue8B>(voltage) : static_cast<AdcValue8B>(255);
             pin_num++;
         }
+
+        DisableAllInputs();
 
         return array_of_voltages;
     }
 
     void EnableOutputForPin(PinNumT ch)
     {
-        auto mux_num = ch / 16;
-        ch %= 16;
+        Byte mux_num;
+        if (ch > 15){
+            ch -= 16;
+            mux_num = 1;
+        }
+        else
+            mux_num = 0;
 
         DisableAllOutputs();
 
@@ -90,9 +97,13 @@ class OhmMeter {
     }
     void EnableInputChannel(PinNumT ch)
     {
-        auto mux_num = ch / 16;
-        ch %= 16;
-
+        Byte mux_num;
+        if (ch > 15){
+            ch -= 16;
+            mux_num = 1;
+        }
+        else
+            mux_num = 0;
         DisableAllInputs();
 
         inputMuxes[mux_num].SetChannel(ch);
@@ -130,8 +141,8 @@ class OhmMeter {
   protected:
     void ConfigureADCForMeasurement() noexcept
     {
-        adc->SetReference(adcReference);
-        adc->SetSingleChannel(adcSensingChannel);
+        ADCHandler::SetReference(adcReference);
+        ADCHandler::SetSingleChannel(adcSensingChannel);
     }
     void SetVoltageAtPin(PinNumT pin) noexcept { }
 
@@ -140,7 +151,7 @@ class OhmMeter {
     auto constexpr static channelsPairsNum  = Mux16PairNum * 16;
     auto constexpr static adcSensingChannel = ADCHandler::SingleChannel::_0;
     auto constexpr static adcReference      = ADCHandler::Reference::Internal1v1;
-    ADCHandler *adc                         = nullptr;
+
     std::array<Switch, Mux16PairNum> static outputMuxes;
     std::array<Switch, Mux16PairNum> static inputMuxes;
 

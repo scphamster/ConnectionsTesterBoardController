@@ -26,7 +26,7 @@ initialization() noexcept
     if (i2c_address != 0xff and i2c_address != 0)
         i2c.SetNewAddress(i2c_address);
 
-    ADCHandler::Create();
+    ADCHandler::Init();
     Timer8::Init(Timer8::Clock::_1024, Timer8::Waveform::CTC, timer8_ctc_value);
     sei();
 }
