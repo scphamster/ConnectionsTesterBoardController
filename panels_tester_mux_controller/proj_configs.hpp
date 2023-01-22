@@ -7,23 +7,23 @@ using CommandSubtype = uint8_t;
 using Byte           = uint8_t;
 
 enum Memory {
-    EEPROMAddressI2CBoardAddress = 0,
+    EEPROMAddressI2CBoardAddress     = 0,
     ElectricalCharacteristicsAddress = 1,
-    ElectricalCharacteristicsSize = 12 //2 bytes each: in / out resistance * 2 + outVoltage(hi and low) = (2 * 2 + 2) * 2
-
+    ElectricalCharacteristicsSize =
+      14   // 2 bytes each: in / out resistance * 2 + shunt_resistance + outVoltage(hi and low) = (2 * 2 + 1 + 2) * 2
 };
 enum I2C {
     DefaultAddress = 32
 };
 
 enum class Command : CommandSubtype {
-    EnableVoltageAtPin   = 0xc1,
-    CheckInternalCounter = 0xc2,
-    CheckVoltages        = 0xc3,
-    SetVoltageLevel      = 0xc4,
-    ChangeAddress        = 0xc5,
-    TestDataLink         = 0xc6,
-    GetFirmwareVersion   = 0xc7,
+    EnableVoltageAtPin    = 0xc1,
+    CheckInternalCounter  = 0xc2,
+    CheckVoltages         = 0xc3,
+    SetVoltageLevel       = 0xc4,
+    ChangeAddress         = 0xc5,
+    TestDataLink          = 0xc6,
+    GetFirmwareVersion    = 0xc7,
     SetInternalParameters = 0xc8,
     GetInternalParameters = 0xc9
 };
